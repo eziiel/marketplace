@@ -1,75 +1,32 @@
-# React + TypeScript + Vite
+# P0
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Fundação
+React/TypeScript, TanStack Router, Query, Axios, Tailwind, shadcn/ui e MSW. Garantir que a aplicação inicialize, faça uma requisição simulada e navegue entre rotas.
 
-Currently, two official plugins are available:
+# P1
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Fluxo principal
+Catálogo → detalhe → carrinho → login → cotação → pedido → confirmação. Persistência simulada e estados de erro.
 
-## React Compiler
+# P2
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Tempo real
+Socket.IO real no cliente, com emissão simulada na camada de mocks: atualização de NFT e estado do pedido. Sem chamar diretamente setters de componentes.
 
-## Expanding the ESLint configuration
+# P3
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Qualidade e entrega
+Playwright E2E, responsividade, acessibilidade, deploy público, README, arquitetura e medições do Lighthouse.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
+Atualização do progresso
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
-
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
+Funcionalidade
+Status
+React + TypeScript + Vite
+Tailwind + shadcn/ui
+TanStack Router
+TanStack Query
+Axios + MSW
+Requisição simulada no catálogo
+Build de produção
