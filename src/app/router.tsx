@@ -9,7 +9,13 @@ import { CatalogPage } from "@/features/catalog/pages/catalog-page";
 import { NftDetailsPage } from "@/features/catalog/pages/nft-details-page";
 import type { NftListParams } from "@/features/catalog/types/nft";
 import { CartPage } from "@/features/cart/pages/cart-page";
+import { LoginPage } from "@/features/auth/pages/login-page";
 
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
+  component: LoginPage,
+});
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
 });
@@ -51,6 +57,7 @@ const routeTree = rootRoute.addChildren([
   catalogRoute,
   nftDetailsRoute,
   cartRoute,
+  loginRoute,
 ]);
 export const router = createRouter({ routeTree });
 

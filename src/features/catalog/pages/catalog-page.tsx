@@ -5,6 +5,8 @@ import { CatalogSearch } from "../components/catalog-search";
 import { CatalogSort } from "../components/catalog-sort";
 import { CatalogPagination } from "../components/catalog-pagination";
 import { Link } from "@tanstack/react-router";
+import { AuthStatus } from "@/features/auth/components/auth-status";
+
 export function CatalogPage() {
   const params = useSearch({ from: "/" });
   console.log("Parâmetros da URL:", params);
@@ -25,7 +27,7 @@ export function CatalogPage() {
   return (
     <div>
       <h1>Catálogo de NFTs</h1>
-
+      <AuthStatus />
       <CatalogSearch />
       <CatalogSort />
 

@@ -4,6 +4,9 @@ import { nfts } from "./data/nfts";
 import type { CartItem } from "@/features/cart/types/cart";
 import { saveSessionCart } from "./data/cart-store";
 import { getRequestCart } from "./utils/get-request-cart";
+import { users } from "./data/users";
+import { createAuthSession, deleteAuthSession } from "./data/auth-store";
+import { getAuthSession } from "./data/auth-store";
 
 export const handlers = [
   http.get("/api/nfts", ({ request }) => {
@@ -219,5 +222,94 @@ export const handlers = [
     cart.items.splice(itemIndex, 1);
     saveSessionCart(sessionId, cart);
     return HttpResponse.json(cart);
+  }),
+  http.post("/api/auth/login", async ({ request }) => {
+    const body: unknown = await request.json();
+
+    if (
+      typeof body !== "object" ||
+      body === null ||
+      !("email" in body) ||
+      !("password" in body) ||
+      typeof body.email !== "string" ||
+      typeof body.password !== "string"
+    ) {
+      return HttpResponse.json(
+        { message: "E-mail e senha são obrigatórios" },
+        { status: 400 },
+      );
+    }
+
+    const email = body.email.trim();
+    const password = body.password;
+
+    if (!email || !password) {
+      return HttpResponse.json(
+        { message: "E-mail e senha são obrigatórios" },
+        { status: 400 },
+      );
+    }
+
+    const account = users.find(
+      (account) =>
+        account.user.email.toLowerCase() === email.toLowerCase() &&
+        account.password === password,
+    );
+
+    if (!account) {
+      return HttpResponse.json(
+        { message: "Credenciais inválidas" },
+        { status: 401 },
+      );
+    }
+
+    const session = createAuthSession(account.user);
+
+    return HttpResponse.json(session, { status: 200 });
+  }),
+  http.get("/api/auth/me", ({ request }) => {
+    const authorization = request.headers.get("Authorization");
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return HttpResponse.json(
+        { message: "Token de autenticação ausente" },
+        { status: 401 },
+      );
+    }
+
+    const token = authorization.slice("Bearer ".length).trim();
+
+    if (!token) {
+      return HttpResponse.json(
+        { message: "Token de autenticação inválido" },
+        { status: 401 },
+      );
+    }
+
+    const session = getAuthSession(token);
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: "Sessão inválida ou expirada" },
+        { status: 401 },
+      );
+    }
+
+    return HttpResponse.json({
+      user: session.user,
+      expiresAt: session.expiresAt,
+    });
+  }),
+  http.post("/api/auth/logout", ({ request }) => {
+    const authorization = request.headers.get("Authorization");
+    const token = authorization?.replace(/^Bearer\s+/, "").trim();
+
+    if (!token || !getAuthSession(token)) {
+      return HttpResponse.json({ message: "Sessão inválida" }, { status: 401 });
+    }
+
+    deleteAuthSession(token);
+
+    return HttpResponse.json({ success: true });
   }),
 ];

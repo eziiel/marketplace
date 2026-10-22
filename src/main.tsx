@@ -9,7 +9,7 @@ import { router } from "@/app/router";
 import "./index.css";
 
 async function enableMocking() {
-  if (!import.meta.env.DEV) {
+  if (import.meta.env.VITE_ENABLE_MOCKS !== "true") {
     return;
   }
 

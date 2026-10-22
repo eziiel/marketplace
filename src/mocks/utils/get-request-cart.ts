@@ -1,15 +1,16 @@
-import type { Cart } from "@/features/cart/types/cart";
-import { getSessionCart } from "../data/cart-store";
 import { HttpResponse } from "msw";
+import type { Cart } from "@/features/cart/types/cart";
+import { getAuthSession } from "../data/auth-store";
+import { getSessionCart } from "../data/cart-store";
 
 type RequestCartResult =
   | { ok: true; sessionId: string; cart: Cart }
   | { ok: false; response: Response };
 
 export function getRequestCart(request: Request): RequestCartResult {
-  const sessionId = request.headers.get("X-Session-Id");
+  const anonymousId = request.headers.get("X-Session-Id");
 
-  if (!sessionId) {
+  if (!anonymousId) {
     return {
       ok: false,
       response: HttpResponse.json(
@@ -19,9 +20,31 @@ export function getRequestCart(request: Request): RequestCartResult {
     };
   }
 
+  const authorization = request.headers.get("Authorization");
+
+  let storageKey = anonymousId;
+
+  if (authorization) {
+    const match = /^Bearer (.+)$/.exec(authorization);
+
+    const session = match ? getAuthSession(match[1]) : null;
+
+    if (!session) {
+      return {
+        ok: false,
+        response: HttpResponse.json(
+          { message: "Sessão inválida ou expirada" },
+          { status: 401 },
+        ),
+      };
+    }
+
+    storageKey = `user:${session.user.id}`;
+  }
+
   return {
     ok: true,
-    sessionId,
-    cart: getSessionCart(sessionId),
+    sessionId: storageKey,
+    cart: getSessionCart(storageKey),
   };
 }
