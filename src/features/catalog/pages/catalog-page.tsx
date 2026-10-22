@@ -4,7 +4,7 @@ import { useSearch } from "@tanstack/react-router";
 import { CatalogSearch } from "../components/catalog-search";
 import { CatalogSort } from "../components/catalog-sort";
 import { CatalogPagination } from "../components/catalog-pagination";
-
+import { Link } from "@tanstack/react-router";
 export function CatalogPage() {
   const params = useSearch({ from: "/" });
   console.log("Parâmetros da URL:", params);
@@ -30,9 +30,11 @@ export function CatalogPage() {
       <CatalogSort />
 
       {data.items.map((nft) => (
-        <p key={nft.id}>
-          {nft.name} — {nft.price} {nft.currency}
-        </p>
+        <div key={nft.id}>
+          <Link to="/nfts/$id" params={{ id: nft.id }}>
+            {nft.name} — {nft.price} {nft.currency}
+          </Link>
+        </div>
       ))}
 
       <p>

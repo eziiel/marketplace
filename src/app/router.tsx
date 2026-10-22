@@ -8,11 +8,16 @@ import {
 import { CatalogPage } from "@/features/catalog/pages/catalog-page";
 import { NftDetailsPage } from "@/features/catalog/pages/nft-details-page";
 import type { NftListParams } from "@/features/catalog/types/nft";
+import { CartPage } from "@/features/cart/pages/cart-page";
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
 });
-
+const cartRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cart",
+  component: CartPage,
+});
 const catalogRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -42,8 +47,11 @@ const nftDetailsRoute = createRoute({
   component: NftDetailsPage,
 });
 
-const routeTree = rootRoute.addChildren([catalogRoute, nftDetailsRoute]);
-
+const routeTree = rootRoute.addChildren([
+  catalogRoute,
+  nftDetailsRoute,
+  cartRoute,
+]);
 export const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
