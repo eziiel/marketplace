@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useRemoveCartItem } from "../hooks/use-remove-cart-item";
 
 import { getCart } from "../api/get-cart";
@@ -90,6 +91,8 @@ export function CartPage() {
           Não foi possível remover o item: {removeMutation.error.message}
         </p>
       )}
+
+      <Link to="/checkout">Finalizar compra</Link>
     </main>
   );
 }

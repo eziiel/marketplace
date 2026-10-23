@@ -5,6 +5,7 @@ import { RouterProvider } from "@tanstack/react-router";
 
 import { queryClient } from "@/lib/query-client";
 import { router } from "@/app/router";
+import { RealtimeProvider } from "@/features/realtime/realtime-provider";
 
 import "./index.css";
 
@@ -26,7 +27,9 @@ async function bootstrap() {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <RealtimeProvider>
+          <RouterProvider router={router} />
+        </RealtimeProvider>
       </QueryClientProvider>
     </StrictMode>,
   );

@@ -1,12 +1,44 @@
 import { http, HttpResponse } from "msw";
 import type { NftListResponse } from "@/features/catalog/types/nft";
-import { nfts } from "./data/nfts";
+import {
+  findNft,
+  getNft,
+  listNfts,
+  resetNfts,
+  updateNft,
+} from "./data/nft-store";
 import type { CartItem } from "@/features/cart/types/cart";
-import { saveSessionCart } from "./data/cart-store";
+import { getSessionCart, saveSessionCart } from "./data/cart-store";
 import { getRequestCart } from "./utils/get-request-cart";
 import { users } from "./data/users";
 import { createAuthSession, deleteAuthSession } from "./data/auth-store";
 import { getAuthSession } from "./data/auth-store";
+import { settleOrder } from "./settle-order";
+import { emitNftUpdated } from "./socket/realtime";
+import { networks } from "./data/networks";
+import { coupons } from "./data/coupons";
+import { getRequestUser } from "./utils/get-request-user";
+import { getStoredQuote, saveQuote } from "./data/quote-store";
+import {
+  getIdempotencyRecord,
+  getOrder,
+  saveIdempotencyRecord,
+  saveOrder,
+} from "./data/order-store";
+import { add, multiply, percentage, subtract, sum } from "@/lib/money";
+import type {
+  CouponStatus,
+  CreateQuoteInput,
+  Quote,
+  QuoteLineItem,
+} from "@/features/checkout/types/quote";
+import type {
+  CreateOrderInput,
+  Order,
+  OrderItem,
+  OrderTotals,
+  Receipt,
+} from "@/features/checkout/types/order";
 
 export const handlers = [
   http.get("/api/nfts", ({ request }) => {
@@ -20,7 +52,7 @@ export const handlers = [
 
     const pageSize = 10;
 
-    let filteredNfts = [...nfts];
+    let filteredNfts = listNfts();
 
     if (search) {
       filteredNfts = filteredNfts.filter((nft) =>
@@ -52,7 +84,7 @@ export const handlers = [
   http.get("/api/nfts/:id", ({ params }) => {
     const { id } = params;
 
-    const nft = nfts.find((item) => item.id === id);
+    const nft = getNft(String(id));
 
     if (!nft) {
       return HttpResponse.json(
@@ -97,9 +129,9 @@ export const handlers = [
       );
     }
 
-    const nft = nfts.find((item) => item.id === nftId);
+    const nft = findNft(nftId, edition);
 
-    if (!nft || nft.edition !== edition) {
+    if (!nft) {
       return HttpResponse.json(
         { message: "NFT ou edição não encontrada" },
         { status: 404 },
@@ -159,9 +191,9 @@ export const handlers = [
       );
     }
 
-    const nft = nfts.find((item) => item.id === nftId);
+    const nft = findNft(String(nftId), edition);
 
-    if (!nft || nft.edition !== edition) {
+    if (!nft) {
       return HttpResponse.json(
         { message: "NFT ou edição não encontrada" },
         { status: 404 },
@@ -311,5 +343,333 @@ export const handlers = [
     deleteAuthSession(token);
 
     return HttpResponse.json({ success: true });
+  }),
+  http.get("/api/networks", () => {
+    return HttpResponse.json(
+      networks.map((network) => ({
+        id: network.id,
+        label: network.label,
+        fee: network.fee,
+      })),
+    );
+  }),
+  http.post("/api/quote", async ({ request }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
+    const body = (await request
+      .json()
+      .catch(() => null)) as CreateQuoteInput | null;
+
+    const network = networks.find((item) => item.id === body?.networkId);
+
+    if (!network) {
+      return HttpResponse.json({ message: "Rede inválida" }, { status: 400 });
+    }
+
+    const couponCode = body?.couponCode?.trim() || null;
+    const cart = getSessionCart(`user:${auth.user.id}`);
+
+    if (cart.items.length === 0) {
+      return HttpResponse.json({ message: "Carrinho vazio" }, { status: 400 });
+    }
+
+    const items: QuoteLineItem[] = [];
+
+    for (const cartItem of cart.items) {
+      const nft = findNft(cartItem.nftId, cartItem.edition);
+
+      if (!nft) {
+        return HttpResponse.json(
+          { message: "Item do carrinho não encontrado" },
+          { status: 409 },
+        );
+      }
+
+      items.push({
+        nftId: nft.id,
+        edition: nft.edition,
+        name: nft.name,
+        unitPrice: nft.price,
+        quantity: cartItem.quantity,
+        lineTotal: multiply(nft.price, cartItem.quantity),
+        available: nft.available,
+        availabilityOk: cartItem.quantity <= nft.available,
+      });
+    }
+
+    const subtotal = sum(items.map((item) => item.lineTotal));
+
+    let couponStatus: CouponStatus = "none";
+    let discount = "0";
+
+    if (couponCode) {
+      const coupon = coupons.find(
+        (item) => item.code.toLowerCase() === couponCode.toLowerCase(),
+      );
+
+      if (!coupon) {
+        couponStatus = "invalid";
+      } else if (coupon.expired) {
+        couponStatus = "expired";
+      } else {
+        couponStatus = "applied";
+        discount = percentage(subtotal, coupon.percentOff);
+      }
+    }
+
+    const total = add(subtract(subtotal, discount), network.fee);
+
+    const quote: Quote = {
+      id: crypto.randomUUID(),
+      currency: "ETH",
+      items,
+      subtotal,
+      discount,
+      networkId: network.id,
+      networkFee: network.fee,
+      total,
+      couponCode,
+      couponStatus,
+      hasAvailabilityIssue: items.some((item) => !item.availabilityOk),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    };
+
+    saveQuote(auth.user.id, quote);
+
+    return HttpResponse.json(quote, { status: 200 });
+  }),
+  http.post("/api/orders", async ({ request }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
+    const idempotencyKey = request.headers.get("Idempotency-Key")?.trim();
+
+    if (!idempotencyKey) {
+      return HttpResponse.json(
+        { message: "Idempotency-Key obrigatória" },
+        { status: 400 },
+      );
+    }
+
+    const body = (await request
+      .json()
+      .catch(() => null)) as CreateOrderInput | null;
+    const quoteId = body?.quoteId;
+
+    if (typeof quoteId !== "string" || quoteId.length === 0) {
+      return HttpResponse.json(
+        { message: "quoteId obrigatório" },
+        { status: 400 },
+      );
+    }
+
+    const requestHash = quoteId;
+    const existing = getIdempotencyRecord(auth.user.id, idempotencyKey);
+
+    if (existing) {
+      if (existing.requestHash !== requestHash) {
+        return HttpResponse.json(
+          { message: "Idempotency-Key já utilizada com outro conteúdo" },
+          { status: 409 },
+        );
+      }
+
+      const existingOrder = getOrder(auth.user.id, existing.orderId);
+
+      if (existingOrder) {
+        return HttpResponse.json(existingOrder, { status: 200 });
+      }
+    }
+
+    const stored = getStoredQuote(quoteId);
+
+    if (!stored || stored.userId !== auth.user.id) {
+      return HttpResponse.json(
+        { message: "Cotação não encontrada" },
+        { status: 404 },
+      );
+    }
+
+    if (new Date(stored.quote.expiresAt).getTime() <= Date.now()) {
+      return HttpResponse.json(
+        { message: "Cotação expirada, refaça a cotação" },
+        { status: 409 },
+      );
+    }
+
+    for (const line of stored.quote.items) {
+      const nft = findNft(line.nftId, line.edition);
+
+      if (!nft) {
+        return HttpResponse.json(
+          { message: "Item indisponível" },
+          { status: 409 },
+        );
+      }
+
+      if (nft.price !== line.unitPrice) {
+        return HttpResponse.json(
+          { message: "Preço alterado, refaça a cotação" },
+          { status: 409 },
+        );
+      }
+
+      if (line.quantity > nft.available) {
+        return HttpResponse.json(
+          { message: "Estoque insuficiente" },
+          { status: 409 },
+        );
+      }
+    }
+
+    const now = new Date().toISOString();
+
+    const orderItems: OrderItem[] = stored.quote.items.map((line) => ({
+      nftId: line.nftId,
+      edition: line.edition,
+      name: line.name,
+      unitPrice: line.unitPrice,
+      quantity: line.quantity,
+      lineTotal: line.lineTotal,
+    }));
+
+    const totals: OrderTotals = {
+      subtotal: stored.quote.subtotal,
+      discount: stored.quote.discount,
+      networkFee: stored.quote.networkFee,
+      total: stored.quote.total,
+      currency: "ETH",
+    };
+
+    const order: Order = {
+      id: crypto.randomUUID(),
+      status: "pending",
+      version: 1,
+      items: orderItems,
+      totals,
+      networkId: stored.quote.networkId,
+      couponCode:
+        stored.quote.couponStatus === "applied"
+          ? stored.quote.couponCode
+          : null,
+      createdAt: now,
+      confirmedAt: null,
+      transactionHash: null,
+      explorerUrl: null,
+      refusalReason: null,
+    };
+
+    saveOrder(auth.user.id, order);
+    saveIdempotencyRecord(auth.user.id, idempotencyKey, {
+      orderId: order.id,
+      requestHash,
+    });
+
+    const userId = auth.user.id;
+    const orderId = order.id;
+
+    setTimeout(() => {
+      settleOrder(userId, orderId);
+    }, 400);
+
+    return HttpResponse.json(order, { status: 201 });
+  }),
+  http.get("/api/orders/:id", ({ params, request }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
+    const order = getOrder(auth.user.id, String(params.id));
+
+    if (!order) {
+      return HttpResponse.json(
+        { message: "Pedido não encontrado" },
+        { status: 404 },
+      );
+    }
+
+    return HttpResponse.json(order);
+  }),
+  http.get("/api/orders/:id/receipt", ({ params, request }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
+    const order = getOrder(auth.user.id, String(params.id));
+
+    if (!order) {
+      return HttpResponse.json(
+        { message: "Recibo não encontrado" },
+        { status: 404 },
+      );
+    }
+
+    const receipt: Receipt = {
+      orderId: order.id,
+      status: order.status,
+      items: order.items,
+      totals: order.totals,
+      networkId: order.networkId,
+      transactionHash: order.transactionHash,
+      explorerUrl: order.explorerUrl,
+      confirmedAt: order.confirmedAt,
+    };
+
+    return HttpResponse.json(receipt);
+  }),
+  http.post("/api/test/reset", () => {
+    localStorage.removeItem("marketplace-carts");
+    localStorage.removeItem("marketplace-orders");
+    localStorage.removeItem("marketplace-quotes");
+    resetNfts();
+
+    return HttpResponse.json({ ok: true });
+  }),
+  http.post("/api/test/nft-updated", async ({ request }) => {
+    const body = (await request.json().catch(() => null)) as {
+      id?: string;
+      version?: number;
+      price?: string;
+      available?: number;
+    } | null;
+
+    if (
+      typeof body?.id !== "string" ||
+      typeof body.version !== "number" ||
+      !Number.isInteger(body.version)
+    ) {
+      return HttpResponse.json({ message: "Payload inválido" }, { status: 400 });
+    }
+
+    const current = getNft(body.id);
+
+    if (!current) {
+      return HttpResponse.json(
+        { message: "NFT não encontrado" },
+        { status: 404 },
+      );
+    }
+
+    const price = body.price ?? current.price;
+    const available = body.available ?? current.available;
+
+    if (body.version > current.version) {
+      updateNft(body.id, { price, available, version: body.version });
+    }
+
+    emitNftUpdated({ id: body.id, version: body.version, price, available });
+
+    return HttpResponse.json({ ok: true });
   }),
 ];
