@@ -22,9 +22,16 @@ import { getStoredQuote, saveQuote } from "./data/quote-store";
 import {
   getIdempotencyRecord,
   getOrder,
+  listOrders,
   saveIdempotencyRecord,
   saveOrder,
 } from "./data/order-store";
+import {
+  getScenario,
+  isScenario,
+  resetScenario,
+  setScenario,
+} from "./data/scenario-store";
 import { add, multiply, percentage, subtract, sum } from "@/lib/money";
 import type {
   CouponStatus,
@@ -504,6 +511,37 @@ export const handlers = [
       );
     }
 
+    const scenario = getScenario();
+
+    if (scenario === "price_changed" || scenario === "stock_changed") {
+      for (const line of stored.quote.items) {
+        const nft = findNft(line.nftId, line.edition);
+
+        if (!nft) {
+          continue;
+        }
+
+        const patch =
+          scenario === "price_changed"
+            ? { price: add(line.unitPrice, "0.1"), version: nft.version + 1 }
+            : {
+                available: Math.max(0, line.quantity - 1),
+                version: nft.version + 1,
+              };
+
+        const updated = updateNft(line.nftId, patch);
+
+        if (updated) {
+          emitNftUpdated({
+            id: updated.id,
+            version: updated.version,
+            price: updated.price,
+            available: updated.available,
+          });
+        }
+      }
+    }
+
     for (const line of stored.quote.items) {
       const nft = findNft(line.nftId, line.edition);
 
@@ -579,7 +617,23 @@ export const handlers = [
       settleOrder(userId, orderId);
     }, 400);
 
+    if (scenario === "timeout") {
+      return HttpResponse.json(
+        { message: "Tempo limite da transação excedido", orderId: order.id },
+        { status: 504 },
+      );
+    }
+
     return HttpResponse.json(order, { status: 201 });
+  }),
+  http.get("/api/orders", ({ request }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
+    return HttpResponse.json(listOrders(auth.user.id));
   }),
   http.get("/api/orders/:id", ({ params, request }) => {
     const auth = getRequestUser(request);
@@ -633,8 +687,25 @@ export const handlers = [
     localStorage.removeItem("marketplace-orders");
     localStorage.removeItem("marketplace-quotes");
     resetNfts();
+    resetScenario();
 
-    return HttpResponse.json({ ok: true });
+    return HttpResponse.json({ ok: true, scenario: getScenario() });
+  }),
+  http.get("/api/test/scenario", () => {
+    return HttpResponse.json({ scenario: getScenario() });
+  }),
+  http.post("/api/test/scenario", async ({ request }) => {
+    const body = (await request.json().catch(() => null)) as {
+      scenario?: unknown;
+    } | null;
+
+    if (!isScenario(body?.scenario)) {
+      return HttpResponse.json({ message: "Cenário inválido" }, { status: 400 });
+    }
+
+    setScenario(body.scenario);
+
+    return HttpResponse.json({ ok: true, scenario: body.scenario });
   }),
   http.post("/api/test/nft-updated", async ({ request }) => {
     const body = (await request.json().catch(() => null)) as {

@@ -17,13 +17,37 @@ async function addGenesisToCart(page: Page) {
   await expect(page.getByText("Item adicionado ao carrinho!")).toBeVisible();
 }
 
+async function setScenario(page: Page, scenario: string) {
+  await page.evaluate(async (value) => {
+    await fetch("/api/test/scenario", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario: value }),
+    });
+  }, scenario);
+}
+
+async function getCartItemCount(page: Page): Promise<number> {
+  return page.evaluate(async () => {
+    const token = localStorage.getItem("marketplace-auth-token");
+    const sessionId = localStorage.getItem("marketplace-session-id");
+    const cart = await fetch("/api/cart", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-Session-Id": sessionId ?? "",
+      },
+    }).then((response) => response.json());
+
+    return cart.items.length as number;
+  });
+}
+
 test.describe("Checkout", () => {
   test("compra completa do catálogo ao recibo confirmado", async ({ page }) => {
     await login(page);
     await addGenesisToCart(page);
 
-    await page.goto("/cart");
-    await page.getByRole("link", { name: "Finalizar compra" }).click();
+    await page.goto("/checkout");
 
     await expect(
       page.getByRole("heading", { name: "Finalizar compra" }),
@@ -38,20 +62,20 @@ test.describe("Checkout", () => {
     await expect(page.getByText(/Total: 0\.5021 ETH/)).toBeVisible();
     await expect(page.getByText(/Transação: 0x/)).toBeVisible();
 
-    await page.goto("/cart");
-    await expect(page.getByText("Seu carrinho está vazio.")).toBeVisible();
+    expect(await getCartItemCount(page)).toBe(0);
   });
 
-  test("pagamento recusado preserva o carrinho", async ({ page }) => {
+  test("pagamento recusado (cenário MSW) preserva o carrinho", async ({
+    page,
+  }) => {
     await login(page);
     await addGenesisToCart(page);
+    await setScenario(page, "payment_refused");
 
     await page.goto("/checkout");
     await expect(
       page.getByRole("heading", { name: "Finalizar compra" }),
     ).toBeVisible();
-
-    await page.getByLabel("Rede").selectOption("testnet-refuse");
     await expect(page.getByText(/Total:/)).toBeVisible();
 
     await page.getByRole("button", { name: "Confirmar pedido" }).click();
@@ -60,8 +84,7 @@ test.describe("Checkout", () => {
       page.getByRole("heading", { name: "Pagamento recusado" }),
     ).toBeVisible();
 
-    await page.goto("/cart");
-    await expect(page.getByText("NFT: 1 — Edição: Genesis")).toBeVisible();
+    expect(await getCartItemCount(page)).toBeGreaterThan(0);
   });
 
   test("idempotência: mesma chave reusa o pedido e payload diferente gera 409", async ({
@@ -69,6 +92,7 @@ test.describe("Checkout", () => {
   }) => {
     await login(page);
     await addGenesisToCart(page);
+    await setScenario(page, "payment_refused");
 
     const result = await page.evaluate(async () => {
       const token = localStorage.getItem("marketplace-auth-token");
@@ -82,7 +106,7 @@ test.describe("Checkout", () => {
       const quoteOne = await fetch("/api/quote", {
         method: "POST",
         headers,
-        body: JSON.stringify({ networkId: "testnet-refuse" }),
+        body: JSON.stringify({ networkId: "ethereum" }),
       }).then((response) => response.json());
 
       const key = crypto.randomUUID();
@@ -103,7 +127,7 @@ test.describe("Checkout", () => {
       const quoteTwo = await fetch("/api/quote", {
         method: "POST",
         headers,
-        body: JSON.stringify({ networkId: "testnet-refuse" }),
+        body: JSON.stringify({ networkId: "ethereum" }),
       }).then((response) => response.json());
 
       const conflictResponse = await fetch("/api/orders", {

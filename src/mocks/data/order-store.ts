@@ -39,6 +39,10 @@ export function getOrder(userId: string, orderId: string): Order | null {
   return readStore().orders[userId]?.[orderId] ?? null;
 }
 
+export function listOrders(userId: string): Order[] {
+  return Object.values(readStore().orders[userId] ?? {});
+}
+
 export function saveOrder(userId: string, order: Order): void {
   const store = readStore();
   const userOrders = store.orders[userId] ?? {};

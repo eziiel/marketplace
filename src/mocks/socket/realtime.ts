@@ -24,7 +24,6 @@ export interface NftUpdatedPayload {
 export interface OrderUpdatedPayload {
   id: string;
   version: number;
-  status: string;
 }
 
 export function emitNftUpdated(payload: NftUpdatedPayload): void {

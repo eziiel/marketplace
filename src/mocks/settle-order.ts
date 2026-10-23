@@ -2,7 +2,7 @@ import type { Order } from "@/features/checkout/types/order";
 import { getOrder, saveOrder } from "./data/order-store";
 import { getSessionCart, saveSessionCart } from "./data/cart-store";
 import { decrementStock } from "./data/nft-store";
-import { networks } from "./data/networks";
+import { getScenario } from "./data/scenario-store";
 import { emitNftUpdated, emitOrderUpdated } from "./socket/realtime";
 
 export function settleOrder(userId: string, orderId: string): void {
@@ -12,22 +12,16 @@ export function settleOrder(userId: string, orderId: string): void {
     return;
   }
 
-  const network = networks.find((item) => item.id === order.networkId);
-
-  if (network?.refuses) {
+  if (getScenario() === "payment_refused") {
     const refused: Order = {
       ...order,
       status: "refused",
       version: order.version + 1,
-      refusalReason: "Pagamento recusado pela rede",
+      refusalReason: "Pagamento recusado",
     };
 
     saveOrder(userId, refused);
-    emitOrderUpdated({
-      id: refused.id,
-      version: refused.version,
-      status: "refused",
-    });
+    emitOrderUpdated({ id: refused.id, version: refused.version });
 
     return;
   }
@@ -69,9 +63,5 @@ export function settleOrder(userId: string, orderId: string): void {
   );
   saveSessionCart(`user:${userId}`, cart);
 
-  emitOrderUpdated({
-    id: confirmed.id,
-    version: confirmed.version,
-    status: "confirmed",
-  });
+  emitOrderUpdated({ id: confirmed.id, version: confirmed.version });
 }
