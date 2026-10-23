@@ -1,6 +1,6 @@
 import type { User } from "@/features/auth/types/auth";
 
-interface MockUser {
+export interface MockUser {
   user: User;
   password: string;
 }

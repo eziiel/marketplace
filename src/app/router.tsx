@@ -5,6 +5,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
+import { SignupPage } from "@/features/auth/pages/signup-page";
 
 import { CatalogPage } from "@/features/catalog/pages/catalog-page";
 import { NftDetailsPage } from "@/features/catalog/pages/nft-details-page";
@@ -20,7 +21,11 @@ function requireAuth() {
     throw redirect({ to: "/login" });
   }
 }
-
+const signupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/signup",
+  component: SignupPage,
+});
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
@@ -82,6 +87,7 @@ const routeTree = rootRoute.addChildren([
   nftDetailsRoute,
   cartRoute,
   loginRoute,
+  signupRoute,
   checkoutRoute,
   confirmationRoute,
 ]);

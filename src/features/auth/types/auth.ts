@@ -14,3 +14,14 @@ export interface AuthSession {
   token: string;
   expiresAt: string;
 }
+export type SignupInput = {
+  name: string;
+  email: string;
+  password: string;
+};
+
+export type SignupResponse = {
+  id: string;
+  name: string;
+  email: string;
+};

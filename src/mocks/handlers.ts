@@ -1,5 +1,7 @@
 import { http, HttpResponse } from "msw";
 import type { NftListResponse } from "@/features/catalog/types/nft";
+import { createUser, findUserByEmail } from "./data/user-store";
+
 import {
   findNft,
   getNft,
@@ -10,7 +12,6 @@ import {
 import type { CartItem } from "@/features/cart/types/cart";
 import { getSessionCart, saveSessionCart } from "./data/cart-store";
 import { getRequestCart } from "./utils/get-request-cart";
-import { users } from "./data/users";
 import { createAuthSession, deleteAuthSession } from "./data/auth-store";
 import { getAuthSession } from "./data/auth-store";
 import { settleOrder } from "./settle-order";
@@ -289,11 +290,14 @@ export const handlers = [
       );
     }
 
-    const account = users.find(
-      (account) =>
-        account.user.email.toLowerCase() === email.toLowerCase() &&
-        account.password === password,
-    );
+    const account = findUserByEmail(email);
+
+    if (!account || account.password !== password) {
+      return HttpResponse.json(
+        { message: "Credenciais inválidas" },
+        { status: 401 },
+      );
+    }
 
     if (!account) {
       return HttpResponse.json(
@@ -700,7 +704,10 @@ export const handlers = [
     } | null;
 
     if (!isScenario(body?.scenario)) {
-      return HttpResponse.json({ message: "Cenário inválido" }, { status: 400 });
+      return HttpResponse.json(
+        { message: "Cenário inválido" },
+        { status: 400 },
+      );
     }
 
     setScenario(body.scenario);
@@ -720,7 +727,10 @@ export const handlers = [
       typeof body.version !== "number" ||
       !Number.isInteger(body.version)
     ) {
-      return HttpResponse.json({ message: "Payload inválido" }, { status: 400 });
+      return HttpResponse.json(
+        { message: "Payload inválido" },
+        { status: 400 },
+      );
     }
 
     const current = getNft(body.id);
@@ -742,5 +752,69 @@ export const handlers = [
     emitNftUpdated({ id: body.id, version: body.version, price, available });
 
     return HttpResponse.json({ ok: true });
+  }),
+  http.post("/api/auth/signup", async ({ request }) => {
+    const body: unknown = await request.json();
+
+    if (
+      typeof body !== "object" ||
+      body === null ||
+      !("name" in body) ||
+      !("email" in body) ||
+      !("password" in body) ||
+      typeof body.name !== "string" ||
+      typeof body.email !== "string" ||
+      typeof body.password !== "string"
+    ) {
+      return HttpResponse.json(
+        { message: "Nome, e-mail e senha são obrigatórios" },
+        { status: 400 },
+      );
+    }
+
+    const name = body.name.trim();
+    const email = body.email.trim().toLowerCase();
+    const password = body.password;
+
+    if (name.length < 2) {
+      return HttpResponse.json(
+        { message: "O nome deve ter pelo menos 2 caracteres" },
+        { status: 400 },
+      );
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return HttpResponse.json(
+        { message: "Informe um e-mail válido" },
+        { status: 400 },
+      );
+    }
+
+    if (password.length < 8) {
+      return HttpResponse.json(
+        { message: "A senha deve ter pelo menos 8 caracteres" },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const account = createUser(name, email, password);
+
+      return HttpResponse.json(account.user, {
+        status: 201,
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "Este e-mail já está cadastrado"
+      ) {
+        return HttpResponse.json({ message: error.message }, { status: 409 });
+      }
+
+      return HttpResponse.json(
+        { message: "Não foi possível realizar o cadastro" },
+        { status: 500 },
+      );
+    }
   }),
 ];
