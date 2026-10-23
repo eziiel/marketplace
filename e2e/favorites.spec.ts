@@ -42,9 +42,9 @@ test.describe("Favoritos", () => {
     await expect(heart).toBeVisible();
     await heart.click();
 
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/auth=login/);
     await expect(
-      page.getByRole("heading", { name: "Entrar no Kurio" }),
+      page.getByRole("dialog", { name: "Entrar na Kurio" }),
     ).toBeVisible();
   });
 

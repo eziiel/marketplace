@@ -2,43 +2,42 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  Outlet,
   redirect,
 } from "@tanstack/react-router";
-import { SignupPage } from "@/features/auth/pages/signup-page";
 
 import { CatalogPage } from "@/features/catalog/pages/catalog-page";
 import { NftDetailsPage } from "@/features/catalog/pages/nft-details-page";
 import type { NftListParams } from "@/features/catalog/types/nft";
 import { CartPage } from "@/features/cart/pages/cart-page";
-import { LoginPage } from "@/features/auth/pages/login-page";
 import { CheckoutPage } from "@/features/checkout/pages/checkout-page";
 import { ConfirmationPage } from "@/features/checkout/pages/confirmation-page";
 import { getAuthToken } from "@/features/auth/lib/auth-token";
+import type { AuthMode } from "@/features/auth/components/auth-modal";
+import { RootLayout } from "./root-layout";
+import { parseAuthMode } from "./auth-search";
+
+const CATALOG_SEARCH = {
+  search: "",
+  page: 1,
+  sort: "price_asc" as const,
+};
 
 function requireAuth() {
   if (!getAuthToken()) {
-    throw redirect({ to: "/login" });
+    throw redirect({
+      to: "/",
+      search: { ...CATALOG_SEARCH, auth: "login" },
+    });
   }
 }
-const signupRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/signup",
-  component: SignupPage,
-});
-const loginRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/login",
-  component: LoginPage,
-});
+
 const rootRoute = createRootRoute({
-  component: () => <Outlet />,
+  validateSearch: (search: Record<string, unknown>): { auth?: AuthMode } => ({
+    auth: parseAuthMode(search.auth),
+  }),
+  component: RootLayout,
 });
-const cartRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/cart",
-  component: CartPage,
-});
+
 const catalogRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -68,6 +67,28 @@ const nftDetailsRoute = createRoute({
   component: NftDetailsPage,
 });
 
+const cartRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cart",
+  component: CartPage,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
+  beforeLoad: () => {
+    throw redirect({ to: "/", search: { ...CATALOG_SEARCH, auth: "login" } });
+  },
+});
+
+const signupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/signup",
+  beforeLoad: () => {
+    throw redirect({ to: "/", search: { ...CATALOG_SEARCH, auth: "signup" } });
+  },
+});
+
 const checkoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/checkout",
@@ -91,7 +112,8 @@ const routeTree = rootRoute.addChildren([
   checkoutRoute,
   confirmationRoute,
 ]);
-export const router = createRouter({ routeTree });
+
+export const router = createRouter({ routeTree, defaultPreload: false });
 
 declare module "@tanstack/react-router" {
   interface Register {

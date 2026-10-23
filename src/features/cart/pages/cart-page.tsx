@@ -12,6 +12,7 @@ import { CartSummary } from "../components/cart-summary";
 import { getNftById } from "@/features/catalog/api/get-nft-by-id";
 import { Container } from "@/components/layout/container";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
@@ -35,14 +36,16 @@ function CartShell({
   return (
     <div className="flex min-h-svh flex-col">
       <SiteHeader
+        activeNav="Mercado"
         cartCount={cartCount}
         isAuthenticated={isAuthenticated}
         userName={authMe.data?.user.name}
         onLogout={() => logoutMutation.mutate()}
       />
-      <main className="flex-1 pb-24 md:pb-12">
+      <main className="flex-1 pb-6 md:pb-0">
         <Container className="py-6 md:py-10">{children}</Container>
       </main>
+      <SiteFooter />
       <MobileNav cartCount={cartCount} />
     </div>
   );

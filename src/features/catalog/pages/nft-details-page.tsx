@@ -2,13 +2,17 @@ import { useState, type ReactNode } from "react";
 import { useParams, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { ImageOff, ChevronRight, ShoppingCart, Check } from "lucide-react";
+import { ChevronRight, ShoppingCart, Check, ShieldCheck } from "lucide-react";
 
 import { useAddCartItem } from "@/features/cart/hooks/use-add-cart-item";
 import { getNftById } from "../api/get-nft-by-id";
+import { getNfts } from "../api/get-nfts";
+import { nftImage } from "../lib/nft-image";
+import { NftCard } from "../components/nft-card";
 
 import { Container } from "@/components/layout/container";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -26,13 +30,15 @@ function DetailsShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-svh flex-col">
       <SiteHeader
+        activeNav="Mercado"
         isAuthenticated={isAuthenticated}
         userName={authMe.data?.user.name}
         onLogout={() => logoutMutation.mutate()}
       />
-      <main className="flex-1 pb-24 md:pb-12">
+      <main className="flex-1 pb-6 md:pb-0">
         <Container className="py-6 md:py-10">{children}</Container>
       </main>
+      <SiteFooter />
       <MobileNav />
     </div>
   );
@@ -52,6 +58,15 @@ function DetailsSkeleton() {
   );
 }
 
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-border/60 py-2 last:border-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-foreground">{value}</dd>
+    </div>
+  );
+}
+
 export function NftDetailsPage() {
   const { id } = useParams({ from: "/nfts/$id" });
 
@@ -64,6 +79,12 @@ export function NftDetailsPage() {
     queryKey: ["nft", id],
     queryFn: () => getNftById(id),
   });
+
+  const relatedQuery = useQuery({
+    queryKey: ["nfts", "all"],
+    queryFn: () => getNfts({ search: "", page: 1, sort: "price_asc" }),
+  });
+
   const addCartMutation = useAddCartItem();
   const [quantity, setQuantity] = useState(1);
 
@@ -89,7 +110,7 @@ export function NftDetailsPage() {
           </p>
           <Link
             to="/"
-            search={{ page: 1 }}
+            search={{ search: "", page: 1, sort: "price_asc" }}
             className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
           >
             Voltar ao catálogo
@@ -102,6 +123,9 @@ export function NftDetailsPage() {
   const soldOut = nft.available === 0;
   const maxQuantity = Math.max(nft.available, 1);
   const effectiveQuantity = Math.min(quantity, maxQuantity);
+  const related = (relatedQuery.data?.items ?? []).filter(
+    (item) => item.id !== nft.id,
+  );
 
   return (
     <DetailsShell>
@@ -109,20 +133,28 @@ export function NftDetailsPage() {
         aria-label="Trilha"
         className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground"
       >
-        <Link to="/" search={{ page: 1 }} className="hover:text-foreground">
+        <Link
+          to="/"
+          search={{ search: "", page: 1, sort: "price_asc" }}
+          className="hover:text-foreground"
+        >
           Início
         </Link>
+        <ChevronRight className="size-3.5" aria-hidden />
+        <a href="/#catalogo" className="hover:text-foreground">
+          Mercado
+        </a>
         <ChevronRight className="size-3.5" aria-hidden />
         <span className="truncate text-foreground">{nft.name}</span>
       </nav>
 
       <div className="grid gap-8 md:grid-cols-2">
-        <div
-          role="img"
-          aria-label={nft.name}
-          className="relative grid aspect-square place-items-center overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-secondary to-card"
-        >
-          <ImageOff className="size-12 text-muted-foreground/40" aria-hidden />
+        <div className="relative aspect-square overflow-hidden rounded-3xl border border-border bg-secondary">
+          <img
+            src={nftImage(nft.id)}
+            alt={nft.name}
+            className="size-full object-cover"
+          />
           {soldOut && (
             <span className="absolute top-4 left-4 rounded-full bg-background/80 px-3 py-1 text-xs font-semibold text-foreground">
               Esgotado
@@ -131,26 +163,37 @@ export function NftDetailsPage() {
         </div>
 
         <div className="flex flex-col">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {nft.edition}
+          <p className="text-xs tracking-wide text-muted-foreground uppercase">
+            {nft.edition} · Kurio Editions
           </p>
           <h1 className="m-0 mt-1 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
             {nft.name}
           </h1>
 
-          <p className="mt-4 text-sm text-muted-foreground">
+          <p className="mt-4 flex items-baseline gap-2 text-sm text-muted-foreground">
             Preço:{" "}
             <span className="text-2xl font-bold text-primary">
               {nft.price} {nft.currency}
             </span>
           </p>
 
-          <dl className="mt-6 space-y-3 border-t border-border pt-6 text-sm">
-            <div className="flex items-center justify-between gap-4">
+          <div className="mt-5 rounded-2xl border border-border bg-card p-4">
+            <h2 className="m-0 text-sm font-semibold text-foreground">
+              Sobre este NFT
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {nft.name} integra a coleção {nft.edition} da Kurio. Cada edição é
+              registrada na rede e transferida para a carteira do comprador após
+              a confirmação do pagamento.
+            </p>
+          </div>
+
+          <dl className="mt-5 space-y-0 rounded-2xl border border-border bg-card px-4 py-1 text-sm">
+            <div className="flex items-center justify-between gap-4 border-b border-border/60 py-2">
               <dt className="text-muted-foreground">Edição: {nft.edition}</dt>
               <dd className="text-foreground">Kurio Editions</dd>
             </div>
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4 border-b border-border/60 py-2">
               <dt className="text-muted-foreground">
                 Disponíveis: {nft.available}
               </dt>
@@ -158,9 +201,12 @@ export function NftDetailsPage() {
                 {soldOut ? "Sem estoque" : "Em estoque"}
               </dd>
             </div>
+            <DetailRow label="Token ID" value={`#${nft.id}`} />
+            <DetailRow label="Padrão" value="ERC-721" />
+            <DetailRow label="Rede" value="Ethereum" />
           </dl>
 
-          <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-border pt-6">
+          <div className="mt-6 flex flex-wrap items-center gap-4">
             <QuantityStepper
               value={effectiveQuantity}
               onDecrement={() => setQuantity((q) => Math.max(q - 1, 1))}
@@ -175,7 +221,7 @@ export function NftDetailsPage() {
             </span>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
               disabled={addCartMutation.isPending || soldOut}
@@ -221,8 +267,28 @@ export function NftDetailsPage() {
               </p>
             )}
           </div>
+
+          <p className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ShieldCheck className="size-3.5" aria-hidden />
+            Transação simulada e protegida para fins de demonstração.
+          </p>
         </div>
       </div>
+
+      {related.length > 0 && (
+        <section className="mt-12">
+          <h2 className="m-0 mb-4 text-xl font-semibold text-foreground">
+            Mais desta coleção
+          </h2>
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {related.map((item) => (
+              <li key={item.id}>
+                <NftCard nft={item} imageUrl={nftImage(item.id)} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </DetailsShell>
   );
 }

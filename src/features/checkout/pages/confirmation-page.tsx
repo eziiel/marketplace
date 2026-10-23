@@ -2,17 +2,20 @@ import type { ReactNode } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import axios from "axios";
 import {
-  CheckCircle2,
   ExternalLink,
   Loader2,
+  MailOpen,
   TriangleAlert,
+  X,
   XCircle,
 } from "lucide-react";
 
 import { Container } from "@/components/layout/container";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { nftImage } from "@/features/catalog/lib/nft-image";
 import { cn } from "@/lib/utils";
 
 import { getAuthToken } from "@/features/auth/lib/auth-token";
@@ -31,13 +34,15 @@ function ConfirmationShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-svh flex-col">
       <SiteHeader
+        activeNav="Mercado"
         isAuthenticated={isAuthenticated}
         userName={authMe.data?.user.name}
         onLogout={() => logoutMutation.mutate()}
       />
-      <main className="flex-1 pb-24 md:pb-12">
+      <main className="flex-1 pb-6 md:pb-0">
         <Container className="py-6 md:py-10">{children}</Container>
       </main>
+      <SiteFooter />
       <MobileNav />
     </div>
   );
@@ -170,38 +175,59 @@ export function ConfirmationPage() {
     );
   }
 
+  const txShort = receipt?.transactionHash
+    ? `${receipt.transactionHash.slice(0, 6)}…${receipt.transactionHash.slice(-4)}`
+    : order.id;
+
   return (
     <ConfirmationShell>
-      <div className="mx-auto max-w-lg overflow-hidden rounded-3xl border border-border bg-card">
-        <div className="flex flex-col items-center gap-3 border-b border-border px-6 py-8 text-center">
-          <span className="grid size-14 place-items-center rounded-full bg-primary/10 text-primary">
-            <CheckCircle2 className="size-7" aria-hidden />
+      <div className="relative mx-auto max-w-xl overflow-hidden rounded-3xl border border-border bg-card">
+        <Link
+          to="/"
+          search={{ search: "", page: 1, sort: "price_asc" }}
+          aria-label="Fechar"
+          className="absolute top-4 right-4 grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-4" aria-hidden />
+        </Link>
+
+        <div className="flex flex-col items-center gap-2 px-6 pt-10 text-center">
+          <span className="grid size-16 place-items-center rounded-full border border-primary/40 bg-primary/10 text-primary">
+            <MailOpen className="size-8" aria-hidden />
           </span>
+          <p className="mt-1 text-xs font-bold tracking-[0.35em] text-primary">
+            THANK YOU
+          </p>
           <h1 className="m-0 text-2xl font-bold text-foreground">
             Pedido confirmado
           </h1>
           <p className="text-sm text-muted-foreground">
             Seus NFTs agora estão na sua carteira.
           </p>
-          <p className="text-xs text-muted-foreground">Pedido: {order.id}</p>
         </div>
 
-        <dl className="grid grid-cols-3 gap-px bg-border">
+        <dl className="mx-6 mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border text-sm sm:grid-cols-4">
+          <div className="bg-card px-4 py-3">
+            <dt className="text-xs text-muted-foreground">ID da transação</dt>
+            <dd className="mt-0.5 truncate font-medium text-foreground">
+              {txShort}
+            </dd>
+          </div>
           <div className="bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">Data</dt>
-            <dd className="mt-0.5 text-sm font-medium text-foreground">
+            <dd className="mt-0.5 font-medium text-foreground">
               {formatDate(order.confirmedAt)}
             </dd>
           </div>
           <div className="bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">Total</dt>
-            <dd className="mt-0.5 text-sm font-medium text-primary">
+            <dd className="mt-0.5 font-medium text-primary">
               {order.totals.total} {order.totals.currency}
             </dd>
           </div>
           <div className="bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">Rede</dt>
-            <dd className="mt-0.5 truncate text-sm font-medium text-foreground">
+            <dd className="mt-0.5 truncate font-medium text-foreground">
               {networkLabel}
             </dd>
           </div>
@@ -225,18 +251,22 @@ export function ConfirmationPage() {
                 {receipt.items.map((item) => (
                   <li
                     key={`${item.nftId}-${item.edition}`}
-                    className="flex items-start justify-between gap-3 text-sm"
+                    className="flex items-start gap-3 text-sm"
                   >
-                    <span className="min-w-0">
+                    <img
+                      src={nftImage(item.nftId)}
+                      alt={item.name}
+                      className="size-11 shrink-0 rounded-lg object-cover"
+                    />
+                    <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium text-foreground">
                         {item.name}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {item.edition} · {item.quantity} × {item.unitPrice}{" "}
-                        {receipt.totals.currency}
+                        ID do token: #{item.nftId} · (x {item.quantity})
                       </span>
                     </span>
-                    <span className="shrink-0 font-semibold text-foreground">
+                    <span className="shrink-0 font-semibold text-primary">
                       {item.lineTotal} {receipt.totals.currency}
                     </span>
                   </li>
@@ -273,16 +303,16 @@ export function ConfirmationPage() {
                 </span>
               </p>
 
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                Transação confirmada na rede {networkLabel}. A propriedade foi
+                transferida para sua carteira conectada e registrada na rede.
+              </p>
+
               {receipt.transactionHash && (
-                <p className="mt-4 rounded-xl border border-border bg-background px-3 py-2 text-xs break-all text-muted-foreground">
+                <p className="mt-3 rounded-xl border border-border bg-background px-3 py-2 text-center text-xs break-all text-muted-foreground">
                   Transação: {receipt.transactionHash}
                 </p>
               )}
-
-              <p className="mt-3 text-xs text-muted-foreground">
-                Transação simulada e confirmada na rede {networkLabel} para fins
-                de demonstração.
-              </p>
 
               {receipt.explorerUrl && (
                 <a
@@ -290,12 +320,12 @@ export function ConfirmationPage() {
                   target="_blank"
                   rel="noreferrer"
                   className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
+                    buttonVariants({ size: "lg" }),
                     "mt-4 h-11 w-full gap-2 text-sm",
                   )}
                 >
                   <ExternalLink className="size-4" aria-hidden />
-                  Ver no explorador
+                  Ver no Etherscan
                 </a>
               )}
             </>
@@ -305,13 +335,15 @@ export function ConfirmationPage() {
             to="/"
             search={{ search: "", page: 1, sort: "price_asc" }}
             className={cn(
-              buttonVariants({ size: "lg" }),
+              buttonVariants({ variant: "outline", size: "lg" }),
               "mt-3 h-11 w-full text-sm",
             )}
           >
             Voltar ao catálogo
           </Link>
         </div>
+
+        <div aria-hidden className="h-1.5 bg-primary" />
       </div>
     </ConfirmationShell>
   );

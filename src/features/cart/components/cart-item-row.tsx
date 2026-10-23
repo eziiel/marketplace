@@ -1,5 +1,6 @@
-import { Trash2, ImageOff } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
+import { nftImage } from "@/features/catalog/lib/nft-image";
 import { multiply } from "@/lib/money";
 import type { CartItem } from "../types/cart";
 import type { NFT } from "@/features/catalog/types/nft";
@@ -29,12 +30,12 @@ export function CartItemRow({
 
   return (
     <li className="flex gap-4 rounded-2xl border border-border bg-card p-4">
-      <div
-        role="img"
-        aria-label={name}
-        className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-secondary to-card"
-      >
-        <ImageOff className="size-6 text-muted-foreground/40" aria-hidden />
+      <div className="size-20 shrink-0 overflow-hidden rounded-xl bg-secondary">
+        <img
+          src={nftImage(item.nftId)}
+          alt={name}
+          className="size-full object-cover"
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">

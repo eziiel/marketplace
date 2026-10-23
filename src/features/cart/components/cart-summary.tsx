@@ -11,7 +11,9 @@ export interface CartSummaryProps {
 export function CartSummary({ subtotal, currency, itemCount }: CartSummaryProps) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="m-0 text-lg font-semibold text-foreground">Resumo</h2>
+      <h2 className="m-0 text-lg font-semibold text-foreground">
+        Resumo da carteira
+      </h2>
 
       <dl className="mt-4 space-y-3 border-t border-border pt-4 text-sm">
         <div className="flex items-center justify-between gap-3">
@@ -42,7 +44,7 @@ export function CartSummary({ subtotal, currency, itemCount }: CartSummaryProps)
       </Link>
       <Link
         to="/"
-        search={{ page: 1 }}
+        search={{ search: "", page: 1, sort: "price_asc" }}
         className={cn(
           buttonVariants({ variant: "ghost", size: "lg" }),
           "mt-2 h-10 w-full text-sm text-muted-foreground",

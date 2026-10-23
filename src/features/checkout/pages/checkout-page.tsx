@@ -11,9 +11,11 @@ import { ChevronRight, Loader2, Tag, TriangleAlert } from "lucide-react";
 
 import { Container } from "@/components/layout/container";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { nftImage } from "@/features/catalog/lib/nft-image";
 import { cn } from "@/lib/utils";
 
 import { getAuthToken } from "@/features/auth/lib/auth-token";
@@ -42,13 +44,15 @@ function CheckoutShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-svh flex-col">
       <SiteHeader
+        activeNav="Mercado"
         isAuthenticated={isAuthenticated}
         userName={authMe.data?.user.name}
         onLogout={() => logoutMutation.mutate()}
       />
-      <main className="flex-1 pb-24 md:pb-12">
+      <main className="flex-1 pb-6 md:pb-0">
         <Container className="py-6 md:py-10">{children}</Container>
       </main>
+      <SiteFooter />
       <MobileNav />
     </div>
   );
@@ -245,7 +249,7 @@ export function CheckoutPage() {
         <aside className="lg:sticky lg:top-20">
           <div className="rounded-2xl border border-border bg-card p-5">
             <h2 className="m-0 text-lg font-semibold text-foreground">
-              Resumo do pedido
+              Seus NFTs
             </h2>
 
             {showQuoteLoading && (
@@ -283,9 +287,14 @@ export function CheckoutPage() {
                   {quote.items.map((item) => (
                     <li
                       key={`${item.nftId}-${item.edition}`}
-                      className="flex items-start justify-between gap-3 text-sm"
+                      className="flex items-start gap-3 text-sm"
                     >
-                      <span className="min-w-0">
+                      <img
+                        src={nftImage(item.nftId)}
+                        alt={item.name}
+                        className="size-11 shrink-0 rounded-lg object-cover"
+                      />
+                      <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium text-foreground">
                           {item.name}
                         </span>

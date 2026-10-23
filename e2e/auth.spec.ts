@@ -8,7 +8,7 @@ test.describe("Autenticação", () => {
     await page.goto("/login");
 
     await expect(
-      page.getByRole("heading", { name: "Entrar no Kurio" }),
+      page.getByRole("dialog", { name: "Entrar na Kurio" }),
     ).toBeVisible();
 
     await page.getByLabel("E-mail").fill("errado@example.com");

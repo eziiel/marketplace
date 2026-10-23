@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Heart, ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NFT } from "@/features/catalog/types/nft";
+
 export interface NftCardProps {
   nft: NFT;
   imageUrl?: string;
@@ -10,16 +11,6 @@ export interface NftCardProps {
   onFavorite?: (nft: NFT) => void;
   isFavorite?: boolean;
   isFavoritePending?: boolean;
-  onQuickView?: (nft: NFT) => void;
-  className?: string;
-}
-export interface NftCardProps {
-  nft: NFT;
-  imageUrl?: string;
-  rarity?: string;
-  collection?: string;
-  onFavorite?: (nft: NFT) => void;
-  onQuickView?: (nft: NFT) => void;
   className?: string;
 }
 
@@ -39,7 +30,7 @@ export function NftCard({
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/40",
+        "group relative overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50",
         className,
       )}
     >
@@ -78,34 +69,30 @@ export function NftCard({
           )}
         </div>
 
-        <div className="space-y-1 p-4">
+        <div className="space-y-1 p-3">
           {collectionLabel && (
-            <p className="truncate text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            <p className="truncate text-[11px] tracking-wide text-muted-foreground uppercase">
               {collectionLabel}
             </p>
           )}
 
-          <h3 className="truncate text-base font-semibold text-foreground">
+          <h3 className="truncate text-sm font-semibold text-foreground">
             {nft.name}
           </h3>
 
-          <div className="flex items-baseline justify-between gap-2 pt-1">
-            <p className="text-base font-semibold text-primary">
+          <div className="flex items-baseline justify-between gap-2 pt-0.5">
+            <p className="text-sm font-bold text-primary">
               {nft.price} {nft.currency}
             </p>
-            <p className="shrink-0 text-xs text-muted-foreground">
-              {soldOut
-                ? "Esgotado"
-                : `${nft.available} ${
-                    nft.available === 1 ? "disponível" : "disponíveis"
-                  }`}
+            <p className="shrink-0 text-[11px] text-muted-foreground">
+              {soldOut ? "Esgotado" : `${nft.available} disp.`}
             </p>
           </div>
         </div>
       </Link>
 
       {rarity && (
-        <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-primary-foreground uppercase">
+        <span className="pointer-events-none absolute top-2.5 left-2.5 rounded-full border border-primary/50 bg-background/80 px-2 py-0.5 text-[10px] font-bold tracking-wide text-primary uppercase backdrop-blur">
           {rarity}
         </span>
       )}
@@ -121,7 +108,7 @@ export function NftCard({
               : `Favoritar ${nft.name}`
           }
           aria-pressed={isFavorite}
-          className="grid size-8 cursor-pointer place-items-center rounded-full bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
+          className="absolute top-2.5 right-2.5 grid size-8 cursor-pointer place-items-center rounded-full bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Heart
             className={cn("size-4", isFavorite && "fill-primary text-primary")}
