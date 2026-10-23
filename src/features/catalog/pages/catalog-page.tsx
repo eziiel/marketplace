@@ -16,6 +16,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { apiErrorMessage } from "@/lib/api-error";
 import { cn } from "@/lib/utils";
 
 import {
@@ -437,7 +438,10 @@ export function CatalogPage() {
                   <CatalogSkeleton />
                 ) : listQuery.isError ? (
                   <ErrorState
-                    message={listQuery.error.message}
+                    message={apiErrorMessage(
+                      listQuery.error,
+                      "Tente novamente em instantes.",
+                    )}
                     onRetry={() => void listQuery.refetch()}
                   />
                 ) : items.length === 0 ? (

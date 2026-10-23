@@ -30,9 +30,27 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
 
   if (body?.message) return body.message;
 
+  if (hasNoResponse(error)) {
+    return axios.isAxiosError(error) && error.code === "ECONNABORTED"
+      ? "O servidor demorou demais para responder. Tente novamente."
+      : "Não foi possível falar com o servidor. Verifique sua conexão.";
+  }
+
   return error instanceof Error ? error.message : fallback;
 }
 
 export function isUnauthorized(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 401;
+}
+
+export function hasNoResponse(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response === undefined;
+}
+
+export function persistedOrderId(error: unknown): string | null {
+  if (!axios.isAxiosError(error)) return null;
+
+  const data = error.response?.data as { orderId?: unknown } | undefined;
+
+  return typeof data?.orderId === "string" ? data.orderId : null;
 }

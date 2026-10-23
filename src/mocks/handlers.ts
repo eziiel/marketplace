@@ -29,6 +29,7 @@ import { createAuthSession, deleteAuthSession } from "./data/auth-store";
 import { getAuthSession } from "./data/auth-store";
 import { settleOrder } from "./settle-order";
 import { emitNftUpdated } from "./socket/realtime";
+import { clearFaults } from "./data/network-faults";
 import { networks } from "./data/networks";
 import { coupons } from "./data/coupons";
 import { reviewsFor } from "./data/reviews";
@@ -861,6 +862,7 @@ export const handlers = [
     return HttpResponse.json(receipt);
   }),
   http.post("/api/test/reset", () => {
+    clearFaults();
     localStorage.removeItem("marketplace-carts");
     localStorage.removeItem("marketplace-orders");
     localStorage.removeItem("marketplace-quotes");

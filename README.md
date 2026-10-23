@@ -158,6 +158,107 @@ Cenários aceitos:
 
 Para restaurar o estado inicial: `await fetch("/api/test/reset", { method: "POST" })`.
 
+### Cenários de rede (latência, offline, 5xx, 401)
+
+Os cenários acima cobrem **regras de negócio**. Falhas de **transporte** são
+configuradas por um eixo separado, `POST /api/test/network`, que injeta falhas em
+endpoints específicos sem afetar os demais:
+
+```js
+// Catálogo lento (800 ms) + pedidos fora do ar nas 2 próximas tentativas
+await fetch("/api/test/network", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    faults: [
+      { path: "/api/nfts", method: "GET", mode: "latency", delayMs: 800 },
+      { path: "/api/orders", method: "POST", mode: "error503", times: 2 },
+    ],
+  }),
+});
+```
+
+| Campo     | Descrição                                                                                  |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `path`    | Caminho exato (`/api/nfts`) ou prefixo com `*` (`/api/nfts*` pega também `/api/nfts/1`)      |
+| `method`  | Opcional. Sem ele, a falha vale para qualquer verbo                                          |
+| `mode`    | `latency`, `timeout`, `offline`, `error500`, `error503`, `error504`, `unauthorized`          |
+| `delayMs` | Para `latency` (padrão 800) e `timeout` (padrão 12000)                                       |
+| `times`   | Quantas requisições a falha afeta antes de se desarmar sozinha. Sem ele, vale indefinidamente |
+
+| Modo           | O que a aplicação enxerga                                                      |
+| -------------- | ------------------------------------------------------------------------------ |
+| `latency`      | Resposta normal, só que atrasada — serve para ver skeletons e `aria-busy`       |
+| `timeout`      | Atraso maior que o `timeout` do Axios (10 s) → o **cliente** aborta a requisição |
+| `offline`      | Erro de transporte: a requisição não chega a ter resposta                       |
+| `error500/503` | Resposta HTTP de erro com corpo `{ message }`                                    |
+| `error504`     | Gateway timeout — o **servidor** desiste, o cliente recebe resposta              |
+| `unauthorized` | HTTP 401, usado para forçar expiração de sessão                                  |
+
+**Desligar e restaurar:**
+
+```js
+await fetch("/api/test/network", { method: "DELETE" }); // só as falhas de rede
+await fetch("/api/test/reset", { method: "POST" });     // falhas + cenário + dados
+```
+
+`GET /api/test/network` lista as falhas armadas no momento.
+
+**Isolamento:** as falhas vivem no `localStorage` da aba, igual ao resto da API
+simulada. Cada contexto de navegador do Playwright tem o seu, então testes em
+paralelo não interferem entre si. Falhas com `path` apontando para `/api/test*`
+são rejeitadas com 400 — o canal de controle nunca se auto-sabota.
+
+> ⚠️ Esses endpoints só existem quando `VITE_ENABLE_MOCKS=true`, porque só então o
+> service worker do MSW é registrado. Eles não são um backdoor de um backend real:
+> não há backend. Numa migração para API de verdade, todo o diretório `src/mocks/`
+> sai junto.
+
+### Como os testes controlam o MSW
+
+`e2e/faults.ts` encapsula essas chamadas (`setFaults`, `clearFaults`, `listFaults`,
+`resetApi`). O helper usa `page.evaluate` + `fetch` porque o MSW roda **dentro da
+página** — requisições feitas pelo processo Node do Playwright não passam pelo service
+worker. Ele também repete a chamada até receber JSON, o que espera o worker subir sem
+depender de `waitForTimeout` arbitrário.
+
+### Estratégia de retry
+
+| Camada                     | Política                                                                 |
+| -------------------------- | ------------------------------------------------------------------------ |
+| Queries (TanStack Query)   | `retry: 1` global; `retry: false` em sessão, perfil e pedido              |
+| Mutations                  | **Sem retry automático** (padrão `0`) — nenhuma operação de escrita repete sozinha |
+| Retry manual               | Botões "Tentar novamente" (catálogo) e "Tentar novamente"/"Refazer cotação" (checkout) |
+
+Mutations não idempotentes nunca são repetidas pela biblioteca. O único reenvio de
+`POST /api/orders` é o explícito, e ele reutiliza a **mesma** `Idempotency-Key`.
+
+### Recuperação de pedidos
+
+O checkout distingue três desfechos de falha, porque eles pedem ações diferentes:
+
+| Situação                                                      | Como é detectada                   | O que a interface faz                                            |
+| ------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
+| **Falhou antes de chegar ao servidor** (offline, timeout do cliente) | Erro do Axios **sem** `response`   | "Tentar novamente" reenvia com a **mesma** `Idempotency-Key`      |
+| **Servidor executou, resposta não chegou** (504 com `orderId`) | Corpo do erro traz `orderId`       | "Ver situação do pedido" abre `/orders/:id` e consulta o estado   |
+| **Servidor recusou** (409, 400, 404)                           | Resposta HTTP de erro sem `orderId` | "Refazer cotação" — é outra operação, aí sim com chave nova       |
+
+A diferença importa: no primeiro caso o pedido **pode ou não** existir, e só a
+idempotência resolve com segurança; no segundo ele **com certeza** existe, e criar
+outro seria cobrar duas vezes. Por isso a chave de idempotência **não** é regenerada
+quando o usuário está apenas recuperando a mesma operação — ela só muda quando a
+cotação muda.
+
+### Limitações da simulação
+
+- `offline` e `timeout` são **simulados pelo MSW**, não são queda real de rede: o
+  service worker continua ativo e o navegador segue online. Para testar indisponibilidade
+  de verdade, use o DevTools (Network → Offline).
+- Como não há servidor, não há perda de pacote, DNS, TLS nem retomada de conexão.
+- `timeout` depende do `timeout` de 10 s do Axios; abaixo disso a requisição apenas demora.
+- A liquidação do pedido roda em `setTimeout` na própria aba: fechar a aba antes de 400 ms
+  deixa o pedido `pending` até a próxima visita.
+
 ### Roteiro sugerido
 
 1. Abra o catálogo, clique no coração de um NFT como **visitante** → é redirecionado ao login.

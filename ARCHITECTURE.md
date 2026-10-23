@@ -162,6 +162,16 @@ A confirmação do pedido (`pending → confirmed`) na UI é dirigida por esses 
 - **Playwright** cobre os fluxos ponta a ponta. Os testes usam `page.evaluate` com
   `fetch` para falar com o MSW quando precisam exercitar a API diretamente (o MSW vive no
   navegador, então requisições do processo Node não seriam interceptadas).
+- Falhas de **transporte** ficam num eixo separado do cenário de negócio: um
+  `faultInterceptor` (`http.all("/api/*")`) registrado antes dos demais handlers consulta
+  um store de falhas e, quando nenhuma se aplica, devolve `undefined` para o MSW seguir
+  para o handler real. Isso permite atrasar, derrubar ou corromper **um endpoint por vez**
+  sem tocar nos outros. Controle em `POST/GET/DELETE /api/test/network`; detalhes e tabela
+  de modos no [README](./README.md#cenários-de-rede-latência-offline-5xx-401).
+- Expiração de sessão é tratada num único ponto: um interceptor de resposta do Axios
+  converte qualquer 401 (fora de login/cadastro) em "sessão expirada", limpa o token,
+  descarta o cache de `["auth"]` e notifica o `RootLayout`, que leva ao modal de login.
+  O carrinho e o catálogo (dados públicos) permanecem no cache.
 
 ## Desvios do Figma e decisões de UX (Mercado)
 

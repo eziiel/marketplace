@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { hasNoResponse, persistedOrderId } from "@/lib/api-error";
 import axios from "axios";
 import { Loader2, TriangleAlert } from "lucide-react";
 
@@ -227,12 +228,19 @@ export function CheckoutPage() {
 
   const createOrder = useCreateOrder();
   const idempotencyKeyRef = useRef(crypto.randomUUID());
+  const lastAttemptRef = useRef<{
+    quoteId: string;
+    walletId: string;
+  } | null>(null);
 
   useEffect(() => {
     if (quote?.id) {
       idempotencyKeyRef.current = crypto.randomUUID();
     }
   }, [quote?.id]);
+
+  const recoveredOrderId = persistedOrderId(createOrder.error);
+  const unknownOutcome = hasNoResponse(createOrder.error);
 
   function applyCoupon(code: string) {
     const next = code.length > 0 ? code : null;
@@ -273,14 +281,21 @@ export function CheckoutPage() {
       return;
     }
 
+    submitOrder(quote.id, selectedWallet.id);
+  }
+
+  function submitOrder(quoteId: string, walletId: string) {
+    lastAttemptRef.current = { quoteId, walletId };
+
     createOrder.mutate(
       {
-        quoteId: quote.id,
-        walletId: selectedWallet.id,
+        quoteId,
+        walletId,
         idempotencyKey: idempotencyKeyRef.current,
       },
       {
         onSuccess: (order) => {
+          lastAttemptRef.current = null;
           storeCoupon(null);
           void navigate({
             to: "/orders/$orderId",
@@ -289,6 +304,16 @@ export function CheckoutPage() {
         },
       },
     );
+  }
+
+  function retrySameOperation() {
+    const payload = lastAttemptRef.current;
+
+    if (!payload) {
+      return;
+    }
+
+    submitOrder(payload.quoteId, payload.walletId);
   }
 
   if (networksQuery.isPending) {
@@ -580,18 +605,42 @@ export function CheckoutPage() {
                     className="flex items-center gap-2 rounded-[4px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
                   >
                     <TriangleAlert className="size-4 shrink-0" aria-hidden />
-                    {messageFromError(createOrder.error)}
+                    {recoveredOrderId
+                      ? "A confirmação não chegou a tempo, mas o pedido foi registrado. Consulte a situação antes de tentar de novo."
+                      : unknownOutcome
+                        ? "Não houve resposta do servidor. O pedido pode ou não ter sido criado — tentar de novo reutiliza a mesma chave e não duplica a compra."
+                        : messageFromError(createOrder.error)}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      createOrder.reset();
-                      void quoteQuery.refetch();
-                    }}
-                    className="flex h-10 w-full items-center justify-center rounded-[4px] border border-primary text-sm font-bold text-highlight transition-colors hover:bg-primary/10"
-                  >
-                    Refazer cotação
-                  </button>
+
+                  {recoveredOrderId ? (
+                    <Link
+                      to="/orders/$orderId"
+                      params={{ orderId: recoveredOrderId }}
+                      className="flex h-10 w-full items-center justify-center rounded-[4px] border border-primary text-sm font-bold text-highlight transition-colors hover:bg-primary/10"
+                    >
+                      Ver situação do pedido
+                    </Link>
+                  ) : unknownOutcome ? (
+                    <button
+                      type="button"
+                      disabled={createOrder.isPending}
+                      onClick={retrySameOperation}
+                      className="flex h-10 w-full items-center justify-center rounded-[4px] border border-primary text-sm font-bold text-highlight transition-colors hover:bg-primary/10 disabled:opacity-50"
+                    >
+                      Tentar novamente
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        createOrder.reset();
+                        void quoteQuery.refetch();
+                      }}
+                      className="flex h-10 w-full items-center justify-center rounded-[4px] border border-primary text-sm font-bold text-highlight transition-colors hover:bg-primary/10"
+                    >
+                      Refazer cotação
+                    </button>
+                  )}
                 </div>
               )}
             </>
