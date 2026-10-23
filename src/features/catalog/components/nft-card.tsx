@@ -1,8 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { Heart, Eye, ImageOff } from "lucide-react";
+import { Heart, ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NFT } from "@/features/catalog/types/nft";
-
+export interface NftCardProps {
+  nft: NFT;
+  imageUrl?: string;
+  rarity?: string;
+  collection?: string;
+  onFavorite?: (nft: NFT) => void;
+  isFavorite?: boolean;
+  isFavoritePending?: boolean;
+  onQuickView?: (nft: NFT) => void;
+  className?: string;
+}
 export interface NftCardProps {
   nft: NFT;
   imageUrl?: string;
@@ -19,7 +29,8 @@ export function NftCard({
   rarity,
   collection,
   onFavorite,
-  onQuickView,
+  isFavorite = false,
+  isFavoritePending = false,
   className,
 }: NftCardProps) {
   const soldOut = nft.available <= 0;
@@ -51,7 +62,10 @@ export function NftCard({
               aria-label={nft.name}
               className="grid size-full place-items-center bg-gradient-to-br from-secondary to-card"
             >
-              <ImageOff className="size-8 text-muted-foreground/40" aria-hidden />
+              <ImageOff
+                className="size-8 text-muted-foreground/40"
+                aria-hidden
+              />
             </div>
           )}
 
@@ -96,29 +110,24 @@ export function NftCard({
         </span>
       )}
 
-      {(onFavorite || onQuickView) && (
-        <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-          {onFavorite && (
-            <button
-              type="button"
-              onClick={() => onFavorite(nft)}
-              aria-label={`Favoritar ${nft.name}`}
-              className="grid size-8 place-items-center rounded-full bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-background focus-visible:opacity-100 focus-visible:outline-none"
-            >
-              <Heart className="size-4" aria-hidden />
-            </button>
-          )}
-          {onQuickView && (
-            <button
-              type="button"
-              onClick={() => onQuickView(nft)}
-              aria-label={`Visualizar ${nft.name}`}
-              className="grid size-8 place-items-center rounded-full bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-background focus-visible:opacity-100 focus-visible:outline-none"
-            >
-              <Eye className="size-4" aria-hidden />
-            </button>
-          )}
-        </div>
+      {onFavorite && (
+        <button
+          type="button"
+          onClick={() => onFavorite(nft)}
+          disabled={isFavoritePending}
+          aria-label={
+            isFavorite
+              ? `Remover ${nft.name} dos favoritos`
+              : `Favoritar ${nft.name}`
+          }
+          aria-pressed={isFavorite}
+          className="grid size-8 cursor-pointer place-items-center rounded-full bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Heart
+            className={cn("size-4", isFavorite && "fill-primary text-primary")}
+            aria-hidden
+          />
+        </button>
       )}
     </article>
   );

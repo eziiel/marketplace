@@ -1,6 +1,11 @@
 import { http, HttpResponse } from "msw";
 import type { NftListResponse } from "@/features/catalog/types/nft";
 import { createUser, findUserByEmail } from "./data/user-store";
+import {
+  getFavorites,
+  addFavorite,
+  removeFavorite,
+} from "./data/favorite-store";
 
 import {
   findNft,
@@ -816,5 +821,113 @@ export const handlers = [
         { status: 500 },
       );
     }
+  }),
+  http.get("/api/favorites", ({ request }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const favorites = getFavorites(auth.user.id);
+
+    return HttpResponse.json({ nftIds: favorites });
+  }),
+
+  http.post("/api/favorites", async ({ request }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const body: unknown = await request.json();
+
+    if (
+      typeof body !== "object" ||
+      body === null ||
+      !("nftId" in body) ||
+      typeof body.nftId !== "string" ||
+      !body.nftId.trim()
+    ) {
+      return HttpResponse.json({ message: "NFT inválido" }, { status: 400 });
+    }
+
+    const nftId = body.nftId;
+
+    const nft = getNft(nftId);
+
+    if (!nft) {
+      return HttpResponse.json(
+        { message: "NFT não encontrado" },
+        { status: 404 },
+      );
+    }
+
+    const favorites = addFavorite(auth.user.id, nftId);
+
+    return HttpResponse.json({ nftIds: favorites }, { status: 200 });
+  }),
+
+  http.delete("/api/favorites/:nftId", ({ request, params }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const nftId = params.nftId;
+
+    if (typeof nftId !== "string") {
+      return HttpResponse.json({ message: "NFT inválido" }, { status: 400 });
+    }
+
+    const favorites = removeFavorite(auth.user.id, nftId);
+
+    return HttpResponse.json({ nftIds: favorites });
+  }),
+  http.get("/api/favorites", ({ request }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const favorites = getFavorites(auth.user.id);
+
+    return HttpResponse.json({ nftIds: favorites });
+  }),
+
+  http.delete("/api/favorites/:nftId", ({ request, params }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const nftId = params.nftId;
+
+    if (typeof nftId !== "string") {
+      return HttpResponse.json({ message: "NFT inválido" }, { status: 400 });
+    }
+
+    const favorites = removeFavorite(auth.user.id, nftId);
+
+    return HttpResponse.json({ nftIds: favorites });
+  }),
+  http.get("/api/favorites", ({ request }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const favorites = getFavorites(auth.user.id);
+
+    return HttpResponse.json({ nftIds: favorites });
+  }),
+
+  http.delete("/api/favorites/:nftId", ({ request, params }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const nftId = params.nftId;
+
+    if (typeof nftId !== "string") {
+      return HttpResponse.json({ message: "NFT inválido" }, { status: 400 });
+    }
+
+    const favorites = removeFavorite(auth.user.id, nftId);
+
+    return HttpResponse.json({ nftIds: favorites });
   }),
 ];

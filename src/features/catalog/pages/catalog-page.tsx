@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { TriangleAlert, SearchX } from "lucide-react";
-
+import { getAuthToken } from "@/features/auth/lib/auth-token";
+import { useFavorites } from "@/features/favorites/hooks/use-favorites";
+import { useAddFavorite } from "@/features/favorites/hooks/use-add-favorite";
+import { useRemoveFavorite } from "@/features/favorites/hooks/use-remove-favorite";
+import type { NFT } from "../types/nft";
 import { getNfts } from "../api/get-nfts";
 import { CatalogSearch } from "../components/catalog-search";
 import { CatalogSort } from "../components/catalog-sort";
@@ -14,7 +18,6 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import { getAuthToken } from "@/features/auth/lib/auth-token";
 import { useAuthMe } from "@/features/auth/hooks/use-auth-me";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 
@@ -108,6 +111,27 @@ export function CatalogPage() {
   const authMe = useAuthMe();
   const logoutMutation = useLogout();
 
+  const favorites = useFavorites();
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
+
+  const favoriteIds = new Set(favorites.data?.nftIds ?? []);
+
+  const isFavoritePending = addFavorite.isPending || removeFavorite.isPending;
+
+  function handleFavorite(nft: NFT) {
+    if (!getAuthToken()) {
+      void navigate({ to: "/login" });
+      return;
+    }
+
+    if (favoriteIds.has(nft.id)) {
+      removeFavorite.mutate(nft.id);
+      return;
+    }
+
+    addFavorite.mutate(nft.id);
+  }
   const { data, isPending, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["nfts", params],
     queryFn: () => getNfts(params),
@@ -192,7 +216,12 @@ export function CatalogPage() {
                 >
                   {data.items.map((nft) => (
                     <li key={nft.id}>
-                      <NftCard nft={nft} />
+                      <NftCard
+                        nft={nft}
+                        onFavorite={handleFavorite}
+                        isFavorite={favoriteIds.has(nft.id)}
+                        isFavoritePending={isFavoritePending}
+                      />
                     </li>
                   ))}
                 </ul>
