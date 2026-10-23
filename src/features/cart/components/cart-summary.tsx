@@ -1,57 +1,141 @@
 import { Link } from "@tanstack/react-router";
-import { buttonVariants } from "@/components/ui/button-variants";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CouponForm } from "@/features/checkout/components/coupon-form";
+import type { Quote } from "@/features/checkout/types/quote";
 
 export interface CartSummaryProps {
-  subtotal: string;
-  currency: string;
-  itemCount: number;
+  quote?: Quote;
+  isPending: boolean;
+  isFetching: boolean;
+  errorMessage?: string;
+  onRetry: () => void;
+  appliedCoupon: string | null;
+  onApplyCoupon: (code: string) => void;
+  onRemoveCoupon: () => void;
 }
 
-export function CartSummary({ subtotal, currency, itemCount }: CartSummaryProps) {
+function Line({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="m-0 text-lg font-semibold text-foreground">
+    <div className={cn("flex items-center justify-between gap-3", className)}>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="text-[15px] text-foreground tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+export function CartSummary({
+  quote,
+  isPending,
+  isFetching,
+  errorMessage,
+  onRetry,
+  appliedCoupon,
+  onApplyCoupon,
+  onRemoveCoupon,
+}: CartSummaryProps) {
+  const currency = quote?.currency ?? "ETH";
+
+  return (
+    <section aria-labelledby="cart-summary-title">
+      <h2
+        id="cart-summary-title"
+        className="m-0 border-b border-border pb-2 text-lg font-normal text-foreground"
+      >
         Resumo da carteira
       </h2>
 
-      <dl className="mt-4 space-y-3 border-t border-border pt-4 text-sm">
-        <div className="flex items-center justify-between gap-3">
-          <dt className="text-muted-foreground">
-            Subtotal ({itemCount} {itemCount === 1 ? "item" : "itens"})
-          </dt>
-          <dd className="font-semibold text-foreground">
-            {subtotal} {currency}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-          <dt className="font-medium text-foreground">Total</dt>
-          <dd className="text-lg font-bold text-primary">
-            {subtotal} {currency}
-          </dd>
-        </div>
-      </dl>
+      <CouponForm
+        appliedCoupon={appliedCoupon}
+        status={quote?.couponStatus}
+        onApply={onApplyCoupon}
+        onRemove={onRemoveCoupon}
+        className="mt-6"
+      />
 
-      <p className="mt-3 text-xs text-muted-foreground">
-        Taxas de rede e descontos são calculados no checkout.
-      </p>
+      {isPending && !errorMessage && (
+        <div aria-label="Calculando resumo" className="mt-4 space-y-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-5 animate-pulse rounded bg-card" />
+          ))}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="mt-4 space-y-3">
+          <p role="alert" className="text-sm text-destructive">
+            Não foi possível calcular o resumo: {errorMessage}
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="text-sm font-bold text-highlight underline underline-offset-4 hover:text-foreground"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      {quote && (
+        <>
+          <dl
+            aria-busy={isFetching}
+            className={cn("mt-4 space-y-3", isFetching && "opacity-60")}
+          >
+            <Line label="Subtotal" value={`${quote.subtotal} ${currency}`} />
+            <Line
+              label="Desconto do lançamento"
+              value={`(-) ${quote.discount} ${currency}`}
+            />
+            <Line
+              label="Taxa de rede"
+              value={`${quote.networkFee} ${currency}`}
+            />
+            <p className="flex items-center justify-end gap-1.5 text-xs text-highlight">
+              {isFetching && (
+                <Loader2 className="size-3 animate-spin" aria-hidden />
+              )}
+              Taxa estimada
+            </p>
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <dt className="text-[15px] text-muted-foreground">Total</dt>
+              <dd className="text-xl font-bold text-highlight tabular-nums">
+                {quote.total} {currency}
+              </dd>
+            </div>
+          </dl>
+
+          {quote.hasAvailabilityIssue && (
+            <p role="alert" className="mt-3 text-xs text-destructive">
+              Um ou mais itens excedem a disponibilidade atual. Ajuste as
+              quantidades para continuar.
+            </p>
+          )}
+        </>
+      )}
 
       <Link
         to="/checkout"
-        className={cn(buttonVariants({ size: "lg" }), "mt-5 h-11 w-full text-sm")}
+        className="mt-6 flex h-10 w-full items-center justify-center rounded-[4px] bg-primary text-[15px] font-bold text-primary-foreground transition-colors hover:bg-primary/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
       >
-        Finalizar compra
+        Conectar e finalizar
       </Link>
       <Link
         to="/"
-        search={{ search: "", page: 1, sort: "price_asc" }}
-        className={cn(
-          buttonVariants({ variant: "ghost", size: "lg" }),
-          "mt-2 h-10 w-full text-sm text-muted-foreground",
-        )}
+        search={{ page: 1 }}
+        hash="catalogo"
+        className="mt-4 block text-center text-[15px] text-highlight transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-highlight"
       >
         Continuar explorando
       </Link>
-    </div>
+    </section>
   );
 }

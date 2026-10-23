@@ -13,8 +13,17 @@ async function login(page: Page) {
 
 async function addGenesisToCart(page: Page) {
   await page.goto("/nfts/1");
-  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await page.getByRole("button", { name: "Comprar" }).click();
   await expect(page.getByText("Item adicionado ao carrinho!")).toBeVisible();
+}
+
+async function fillCollectorForm(page: Page) {
+  await page.getByLabel("Nome de usuário").fill("ana.silva");
+  await page.getByLabel("Nome do perfil").fill("Ana Colecionadora");
+  await page
+    .getByLabel("Endereço da carteira")
+    .fill("0x1234567890abcdef1234567890abcdef12345678");
+  await page.getByLabel("Tipo de carteira").selectOption("metamask");
 }
 
 async function setScenario(page: Page, scenario: string) {
@@ -50,16 +59,21 @@ test.describe("Checkout", () => {
     await page.goto("/checkout");
 
     await expect(
-      page.getByRole("heading", { name: "Finalizar compra" }),
+      page.getByRole("heading", { name: "Perfil do colecionador" }),
     ).toBeVisible();
-    await expect(page.getByText(/Total: 0\.5021 ETH/)).toBeVisible();
+    await expect(page.getByText("1.1921 ETH")).toBeVisible();
 
-    await page.getByRole("button", { name: "Confirmar pedido" }).click();
+    await page.getByRole("button", { name: "Confirmar compra" }).click();
+    await expect(page.getByText("Informe um nome de usuário")).toBeVisible();
+    await expect(page.getByLabel("Nome de usuário")).toBeFocused();
+
+    await fillCollectorForm(page);
+    await page.getByRole("button", { name: "Confirmar compra" }).click();
 
     await expect(
       page.getByRole("heading", { name: "Pedido confirmado" }),
     ).toBeVisible();
-    await expect(page.getByText(/Total: 0\.5021 ETH/)).toBeVisible();
+    await expect(page.getByText(/Total: 1\.1921 ETH/)).toBeVisible();
     await expect(page.getByText(/Transação: 0x/)).toBeVisible();
 
     expect(await getCartItemCount(page)).toBe(0);
@@ -74,11 +88,12 @@ test.describe("Checkout", () => {
 
     await page.goto("/checkout");
     await expect(
-      page.getByRole("heading", { name: "Finalizar compra" }),
+      page.getByRole("heading", { name: "Perfil do colecionador" }),
     ).toBeVisible();
-    await expect(page.getByText(/Total:/)).toBeVisible();
+    await expect(page.getByText("Total", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Confirmar pedido" }).click();
+    await fillCollectorForm(page);
+    await page.getByRole("button", { name: "Confirmar compra" }).click();
 
     await expect(
       page.getByRole("heading", { name: "Pagamento recusado" }),

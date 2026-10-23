@@ -15,6 +15,9 @@ export interface CartItemRowProps {
   onRemove: () => void;
 }
 
+export const cartColumns =
+  "md:grid-cols-[minmax(0,1fr)_110px_110px_120px_40px]";
+
 export function CartItemRow({
   item,
   nft,
@@ -29,50 +32,57 @@ export function CartItemRow({
   const atStockLimit = nft ? item.quantity >= nft.available : false;
 
   return (
-    <li className="flex gap-4 rounded-2xl border border-border bg-card p-4">
-      <div className="size-20 shrink-0 overflow-hidden rounded-xl bg-secondary">
+    <li
+      className={`grid grid-cols-[minmax(0,1fr)_48px] items-center gap-x-3 rounded-[4px] bg-card pr-2 md:min-h-[66px] ${cartColumns}`}
+    >
+      <div className="flex min-w-0 items-center gap-3 self-stretch">
         <img
-          src={nftImage(item.nftId)}
-          alt={name}
-          className="size-full object-cover"
+          src={nft?.image || nftImage(item.nftId)}
+          alt=""
+          width={70}
+          height={66}
+          className="h-full min-h-[66px] w-[70px] shrink-0 rounded-l-[4px] object-cover"
         />
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-foreground">
-              {name}
-            </h3>
-            <p className="truncate text-xs text-muted-foreground">
-              NFT: {item.nftId} — Edição: {item.edition}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onRemove}
-            disabled={isRemoving}
-            aria-label={`Remover ${name}`}
-            className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40"
-          >
-            <Trash2 className="size-4" aria-hidden />
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between gap-3">
-          <QuantityStepper
-            value={item.quantity}
-            onDecrement={onDecrement}
-            onIncrement={onIncrement}
-            disableDecrement={isUpdating || item.quantity <= 1}
-            disableIncrement={isUpdating || atStockLimit}
-            label={`Quantidade de ${name}`}
-          />
-          <p className="shrink-0 text-base font-semibold text-primary">
-            {nft ? `${multiply(nft.price, item.quantity)} ${currency}` : "—"}
+        <div className="min-w-0 py-2">
+          <h3 className="m-0 truncate text-[15px] font-bold text-foreground">
+            {name}
+          </h3>
+          <p className="truncate text-xs text-muted-foreground">
+            ID do token: {nft?.tokenId ?? item.nftId}
           </p>
         </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={isRemoving}
+        aria-label={`Remover ${name}`}
+        className="grid size-9 place-items-center justify-self-end rounded-full text-foreground transition-colors hover:bg-secondary hover:text-destructive focus-visible:outline-2 focus-visible:outline-highlight disabled:pointer-events-none disabled:opacity-40 md:order-last"
+      >
+        <Trash2 className="size-5" strokeWidth={1.5} aria-hidden />
+      </button>
+
+      <div className="col-span-2 flex flex-wrap items-center justify-between gap-3 px-4 pb-3 md:contents">
+        <p className="text-[15px] font-bold whitespace-nowrap text-highlight">
+          <span className="sr-only">Preço unitário: </span>
+          {nft ? `${nft.price} ${currency}` : "—"}
+        </p>
+
+        <QuantityStepper
+          size="sm"
+          value={item.quantity}
+          onDecrement={onDecrement}
+          onIncrement={onIncrement}
+          disableDecrement={isUpdating || item.quantity <= 1}
+          disableIncrement={isUpdating || atStockLimit}
+          label={`Quantidade de ${name}`}
+        />
+
+        <p className="text-[15px] font-bold whitespace-nowrap text-highlight">
+          <span className="sr-only">Total: </span>
+          {nft ? `${multiply(nft.price, item.quantity)} ${currency}` : "—"}
+        </p>
       </div>
     </li>
   );

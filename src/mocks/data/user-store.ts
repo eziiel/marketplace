@@ -57,3 +57,15 @@ export function createUser(
 
   return newUser;
 }
+
+export function clearRegisteredPassword(userId: string): void {
+  const registeredUsers = getRegisteredUsers();
+
+  if (!registeredUsers.some(({ user }) => user.id === userId)) return;
+
+  const next = registeredUsers.map((account) =>
+    account.user.id === userId ? { ...account, password: "" } : account,
+  );
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+}

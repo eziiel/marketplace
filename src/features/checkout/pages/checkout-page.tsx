@@ -1,30 +1,42 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import axios from "axios";
-import { ChevronRight, Loader2, Tag, TriangleAlert } from "lucide-react";
+import { Loader2, TriangleAlert } from "lucide-react";
 
 import { Container } from "@/components/layout/container";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { Input } from "@/components/ui/input";
-import { buttonVariants } from "@/components/ui/button-variants";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { crumbs } from "@/components/layout/crumbs";
 import { nftImage } from "@/features/catalog/lib/nft-image";
+import { getStoredCoupon, storeCoupon } from "@/features/cart/lib/coupon-storage";
 import { cn } from "@/lib/utils";
 
 import { getAuthToken } from "@/features/auth/lib/auth-token";
 import { useAuthMe } from "@/features/auth/hooks/use-auth-me";
+import { useProfile } from "@/features/profile/hooks/use-profile";
+import { useWallets } from "@/features/profile/hooks/use-wallets";
+import { SavedWalletPicker } from "@/features/profile/components/saved-wallet-picker";
+import type { CollectorWallet } from "@/features/profile/types/wallet";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 
 import { useNetworks } from "../hooks/use-networks";
 import { useQuote } from "../hooks/use-quote";
 import { useCreateOrder } from "../hooks/use-create-order";
+import { CouponForm } from "../components/coupon-form";
+import { CollectorForm } from "../components/collector-form";
+import {
+  emptyCollectorForm,
+  fieldOrder,
+  validateCollectorForm,
+  type CollectorFormErrors,
+  type CollectorFormValues,
+} from "../lib/collector-form";
+import type { Quote } from "../types/quote";
+import { WALLET_BADGES, WALLET_PROVIDERS } from "../types/wallet";
+
+const FORM_ID = "checkout-form";
 
 function messageFromError(error: unknown): string {
   if (axios.isAxiosError(error)) {
@@ -33,7 +45,7 @@ function messageFromError(error: unknown): string {
     return data?.message ?? error.message;
   }
 
-  return "Erro inesperado";
+  return error instanceof Error ? error.message : "Erro inesperado";
 }
 
 function CheckoutShell({ children }: { children: ReactNode }) {
@@ -50,7 +62,14 @@ function CheckoutShell({ children }: { children: ReactNode }) {
         onLogout={() => logoutMutation.mutate()}
       />
       <main className="flex-1 pb-6 md:pb-0">
-        <Container className="py-6 md:py-10">{children}</Container>
+        <Container className="py-6 md:py-8">
+          <Breadcrumb
+            items={[crumbs.home, crumbs.market]}
+            current="Pagamento"
+            className="mb-5"
+          />
+          {children}
+        </Container>
       </main>
       <SiteFooter />
       <MobileNav />
@@ -58,15 +77,109 @@ function CheckoutShell({ children }: { children: ReactNode }) {
   );
 }
 
+function SummaryLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="text-[15px] text-foreground tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+function QuoteItems({ quote }: { quote: Quote }) {
+  return (
+    <ul aria-label="Itens do pedido" className="mt-4 space-y-4">
+      {quote.items.map((item) => (
+        <li
+          key={`${item.nftId}-${item.edition}`}
+          className="grid min-h-[65px] grid-cols-[70px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-[4px] bg-card pr-3"
+        >
+          <img
+            src={item.image || nftImage(item.nftId)}
+            alt=""
+            width={70}
+            height={65}
+            className="h-full min-h-[65px] w-[70px] self-stretch rounded-l-[4px] object-cover"
+          />
+          <div className="min-w-0 py-2">
+            <p className="truncate text-[15px] font-bold text-foreground">
+              {item.name}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              ID do token: {item.tokenId}
+            </p>
+            {!item.availabilityOk && (
+              <p role="alert" className="mt-0.5 text-xs font-medium text-destructive">
+                Estoque insuficiente ({item.available} disponíveis)
+              </p>
+            )}
+          </div>
+          <p className="flex items-baseline gap-2 whitespace-nowrap">
+            <span className="text-sm text-muted-foreground">
+              (x {item.quantity})
+            </span>
+            <span className="text-[15px] font-bold text-highlight tabular-nums">
+              {item.lineTotal} {quote.currency}
+            </span>
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const profileQuery = useProfile();
+  const walletsQuery = useWallets();
   const networksQuery = useNetworks();
 
   const [selectedNetworkId, setSelectedNetworkId] = useState<string | null>(
     null,
   );
-  const [couponInput, setCouponInput] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [walletType, setWalletType] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(() =>
+    getStoredCoupon(),
+  );
+  const [couponOpen, setCouponOpen] = useState(() => getStoredCoupon() !== null);
+  const [form, setForm] = useState<CollectorFormValues>(emptyCollectorForm);
+  const [errors, setErrors] = useState<CollectorFormErrors>({});
+  const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
+  const [selectedWalletId, setSelectedWalletId] = useState<string | null>(
+    null,
+  );
+
+  const profile = profileQuery.data?.profile;
+
+  if (profile && prefilledFor !== profile.userId) {
+    setPrefilledFor(profile.userId);
+    setForm((current) => ({
+      ...current,
+      displayName: current.displayName || profile.displayName,
+      username: current.username || profile.username,
+      email: current.email || profile.email,
+      ensName: current.ensName || profile.ensName,
+    }));
+  }
+
+  const savedWallets = walletsQuery.data?.wallets ?? [];
+
+  function applySavedWallet(wallet: CollectorWallet) {
+    setSelectedWalletId(wallet.id);
+    setSelectedNetworkId(wallet.networkId);
+    setWalletType(wallet.walletType);
+    setForm((current) => ({
+      ...current,
+      displayName: wallet.displayName || current.displayName,
+      profileName: wallet.profileName || current.profileName,
+      walletAddress: wallet.address,
+      secondaryWallet: wallet.secondaryAddress,
+      referralCode: wallet.referralCode || current.referralCode,
+      email: wallet.email || current.email,
+      ensName: wallet.ensName || current.ensName,
+    }));
+    setErrors({});
+  }
 
   const networkId = selectedNetworkId ?? networksQuery.data?.[0]?.id ?? "";
 
@@ -85,15 +198,33 @@ export function CheckoutPage() {
     }
   }, [quote?.id]);
 
-  function handleApplyCoupon(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const trimmed = couponInput.trim();
-    setAppliedCoupon(trimmed.length > 0 ? trimmed : null);
+  function applyCoupon(code: string) {
+    const next = code.length > 0 ? code : null;
+    setAppliedCoupon(next);
+    storeCoupon(next);
   }
 
-  function handleConfirm() {
-    if (!quote) {
+  function handleSubmit() {
+    const nextErrors = validateCollectorForm(form, networkId, walletType);
+    setErrors(nextErrors);
+
+    const firstInvalid = fieldOrder.find((key) => nextErrors[key]);
+
+    if (firstInvalid) {
+      const formElement = document.getElementById(FORM_ID);
+      const control =
+        formElement instanceof HTMLFormElement
+          ? formElement.elements.namedItem(firstInvalid)
+          : null;
+
+      if (control instanceof HTMLElement) {
+        control.focus();
+      }
+
+      return;
+    }
+
+    if (!quote || quote.hasAvailabilityIssue || quoteQuery.isFetching) {
       return;
     }
 
@@ -101,6 +232,7 @@ export function CheckoutPage() {
       { quoteId: quote.id, idempotencyKey: idempotencyKeyRef.current },
       {
         onSuccess: (order) => {
+          storeCoupon(null);
           void navigate({
             to: "/orders/$orderId",
             params: { orderId: order.id },
@@ -113,9 +245,9 @@ export function CheckoutPage() {
   if (networksQuery.isPending) {
     return (
       <CheckoutShell>
-        <div className="flex items-center justify-center gap-2 rounded-3xl border border-border bg-card px-6 py-20 text-sm text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 rounded-[4px] bg-card px-6 py-20 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" aria-hidden />
-          Carregando checkout...
+          Carregando pagamento...
         </div>
       </CheckoutShell>
     );
@@ -126,7 +258,7 @@ export function CheckoutPage() {
       <CheckoutShell>
         <div
           role="alert"
-          className="flex flex-col items-center gap-3 rounded-3xl border border-destructive/30 bg-destructive/10 px-6 py-16 text-center"
+          className="flex flex-col items-center gap-3 rounded-[4px] border border-destructive/30 bg-destructive/10 px-6 py-16 text-center"
         >
           <TriangleAlert className="size-6 text-destructive" aria-hidden />
           <p className="text-sm text-destructive">
@@ -138,282 +270,234 @@ export function CheckoutPage() {
   }
 
   const showQuoteLoading = !quote && !quoteQuery.isError;
+  const confirmDisabled =
+    createOrder.isPending ||
+    !quote ||
+    quote.hasAvailabilityIssue ||
+    quoteQuery.isFetching;
 
   return (
     <CheckoutShell>
-      <nav
-        aria-label="Trilha"
-        className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground"
-      >
-        <Link to="/" search={{ page: 1 }} className="hover:text-foreground">
-          Início
-        </Link>
-        <ChevronRight className="size-3.5" aria-hidden />
-        <Link to="/cart" className="hover:text-foreground">
-          Carrinho
-        </Link>
-        <ChevronRight className="size-3.5" aria-hidden />
-        <span className="text-foreground">Pagamento</span>
-      </nav>
-
-      <h1 className="m-0 mb-6 text-2xl font-bold text-foreground md:text-3xl">
-        Finalizar compra
-      </h1>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px] lg:items-start">
-        <div className="space-y-6">
-          <fieldset className="rounded-2xl border border-border bg-card p-5">
-            <legend className="px-1 text-sm font-semibold text-foreground">
-              Rede
-            </legend>
-            <div className="mt-2 grid gap-3">
-              {networksQuery.data.map((network) => {
-                const selected = network.id === networkId;
-
-                return (
-                  <label
-                    key={network.id}
-                    className={cn(
-                      "flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors",
-                      selected
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-background hover:border-primary/40",
-                    )}
-                  >
-                    <span className="flex items-center gap-3">
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "grid size-4 shrink-0 place-items-center rounded-full border",
-                          selected
-                            ? "border-primary"
-                            : "border-muted-foreground",
-                        )}
-                      >
-                        {selected && (
-                          <span className="size-2 rounded-full bg-primary" />
-                        )}
-                      </span>
-                      <span className="text-sm font-medium text-foreground">
-                        {network.label}
-                      </span>
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Taxa {network.fee} ETH
-                    </span>
-                    <input
-                      type="radio"
-                      name="network"
-                      value={network.id}
-                      checked={selected}
-                      onChange={() => setSelectedNetworkId(network.id)}
-                      className="sr-only"
-                    />
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          <form
-            onSubmit={handleApplyCoupon}
-            className="rounded-2xl border border-border bg-card p-5"
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_405px] lg:gap-8">
+        <section aria-labelledby="collector-title">
+          <h1
+            id="collector-title"
+            className="m-0 mb-5 text-lg font-normal tracking-normal text-foreground"
           >
-            <label
-              htmlFor="coupon"
-              className="text-sm font-semibold text-foreground"
-            >
-              Cupom de desconto
-            </label>
-            <div className="mt-2 flex gap-2">
-              <Input
-                id="coupon"
-                value={couponInput}
-                onChange={(event) => setCouponInput(event.target.value)}
-                placeholder="Código do cupom"
-                className="flex-1"
-              />
-              <button
-                type="submit"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "h-11 px-4 text-sm",
-                )}
+            Perfil do colecionador
+          </h1>
+          <SavedWalletPicker
+            wallets={savedWallets}
+            selectedId={selectedWalletId}
+            onSelect={applySavedWallet}
+            className="mb-6"
+          />
+
+          <CollectorForm
+            id={FORM_ID}
+            values={form}
+            errors={errors}
+            networks={networksQuery.data}
+            networkId={networkId}
+            walletType={walletType}
+            onChange={setForm}
+            onNetworkChange={setSelectedNetworkId}
+            onWalletTypeChange={setWalletType}
+            onSubmit={handleSubmit}
+          />
+        </section>
+
+        <aside aria-labelledby="order-title" className="lg:sticky lg:top-24">
+          <h2
+            id="order-title"
+            className="m-0 text-lg font-normal text-foreground"
+          >
+            Seus NFTs
+          </h2>
+          <div
+            aria-hidden
+            className="mt-3 flex items-center justify-between border-b border-border pb-2 text-sm text-muted-foreground"
+          >
+            <span>NFTs</span>
+            <span>Subtotal</span>
+          </div>
+
+          {showQuoteLoading && (
+            <div aria-label="Calculando cotação" className="mt-4 space-y-4">
+              {Array.from({ length: 2 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-[65px] animate-pulse rounded-[4px] bg-card"
+                />
+              ))}
+              <div className="h-5 w-2/3 animate-pulse rounded bg-card" />
+              <div className="h-5 w-1/2 animate-pulse rounded bg-card" />
+            </div>
+          )}
+
+          {quoteQuery.isError && (
+            <div className="mt-4 space-y-3">
+              <p
+                role="alert"
+                className="flex items-center gap-2 rounded-[4px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
               >
-                Aplicar cupom
+                <TriangleAlert className="size-4 shrink-0" aria-hidden />
+                {messageFromError(quoteQuery.error)}
+              </p>
+              <button
+                type="button"
+                onClick={() => void quoteQuery.refetch()}
+                className="text-sm font-bold text-highlight underline underline-offset-4 hover:text-foreground"
+              >
+                Tentar novamente
               </button>
             </div>
-          </form>
-        </div>
+          )}
 
-        <aside className="lg:sticky lg:top-20">
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="m-0 text-lg font-semibold text-foreground">
-              Seus NFTs
-            </h2>
+          {quote && (
+            <>
+              <QuoteItems quote={quote} />
 
-            {showQuoteLoading && (
-              <div className="mt-4 flex items-center gap-2 border-t border-border pt-4 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-                Calculando cotação...
-              </div>
-            )}
-
-            {quoteQuery.isError && (
-              <div className="mt-4 space-y-3 border-t border-border pt-4">
-                <p
-                  role="alert"
-                  className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                >
-                  <TriangleAlert className="size-4 shrink-0" aria-hidden />
-                  {messageFromError(quoteQuery.error)}
+              {couponOpen ? (
+                <CouponForm
+                  appliedCoupon={appliedCoupon}
+                  status={quote.couponStatus}
+                  onApply={applyCoupon}
+                  onRemove={() => applyCoupon("")}
+                  className="mt-5"
+                />
+              ) : (
+                <p className="mt-5 text-center text-xs text-muted-foreground">
+                  Tem um código promocional?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setCouponOpen(true)}
+                    className="underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-highlight"
+                  >
+                    Aplique aqui
+                  </button>
                 </p>
-                <Link
-                  to="/"
-                  search={{ search: "", page: 1, sort: "price_asc" }}
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    "h-10 w-full text-sm",
-                  )}
-                >
-                  Voltar ao catálogo
-                </Link>
-              </div>
-            )}
+              )}
 
-            {quote && (
-              <>
-                <ul className="mt-4 space-y-3 border-t border-border pt-4">
-                  {quote.items.map((item) => (
-                    <li
-                      key={`${item.nftId}-${item.edition}`}
-                      className="flex items-start gap-3 text-sm"
-                    >
-                      <img
-                        src={nftImage(item.nftId)}
-                        alt={item.name}
-                        className="size-11 shrink-0 rounded-lg object-cover"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-foreground">
-                          {item.name}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {item.edition} · {item.quantity} × {item.unitPrice}{" "}
-                          {quote.currency}
-                        </span>
-                        {!item.availabilityOk && (
+              <dl
+                aria-busy={quoteQuery.isFetching}
+                className={cn(
+                  "mt-4 space-y-3",
+                  quoteQuery.isFetching && "opacity-60",
+                )}
+              >
+                <SummaryLine
+                  label="Subtotal"
+                  value={`${quote.subtotal} ${quote.currency}`}
+                />
+                <SummaryLine
+                  label="Desconto do lançamento"
+                  value={`(-) ${quote.discount} ${quote.currency}`}
+                />
+                <SummaryLine
+                  label="Taxa de rede"
+                  value={`${quote.networkFee} ${quote.currency}`}
+                />
+                <p className="text-center text-xs text-highlight">
+                  Taxa estimada
+                </p>
+                <div className="flex items-center justify-between gap-3 border-t border-border pt-4 pl-10">
+                  <dt className="text-base text-muted-foreground">Total</dt>
+                  <dd className="text-xl font-bold text-highlight tabular-nums">
+                    {quote.total} {quote.currency}
+                  </dd>
+                </div>
+              </dl>
+
+              <fieldset className="mt-4 min-w-0 border-0 p-0">
+                <legend className="w-full text-center text-base text-foreground">
+                  Carteira e rede
+                </legend>
+                <div className="mt-4 space-y-4">
+                  {WALLET_PROVIDERS.map((wallet) => {
+                    const selected = wallet.id === walletType;
+
+                    return (
+                      <label
+                        key={wallet.id}
+                        className={cn(
+                          "flex h-11 cursor-pointer items-center gap-4 rounded-[4px] border px-3 transition-colors",
+                          selected
+                            ? "border-highlight"
+                            : "border-foreground/70 hover:border-highlight/70",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="wallet"
+                          value={wallet.id}
+                          checked={selected}
+                          onChange={() => setWalletType(wallet.id)}
+                          aria-describedby={
+                            errors.walletType ? "wallet-error" : undefined
+                          }
+                          className="size-4 shrink-0 appearance-none rounded-full border border-primary bg-transparent transition-colors checked:border-[5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
+                        />
+                        {wallet.badge ? (
+                          <span className="rounded-[3px] bg-black/60 px-3 py-1.5 text-[10px] font-bold tracking-wider text-primary uppercase">
+                            <span className="sr-only">{wallet.label}: </span>
+                            {WALLET_BADGES.join(" · ")}
+                          </span>
+                        ) : (
                           <span
-                            role="alert"
-                            className="mt-0.5 block text-xs font-medium text-destructive"
+                            className={cn(
+                              "text-sm",
+                              selected ? "text-foreground" : "text-muted-foreground",
+                            )}
                           >
-                            Estoque insuficiente
+                            {wallet.label}
                           </span>
                         )}
-                      </span>
-                      <span className="shrink-0 font-semibold text-foreground">
-                        {item.lineTotal} {quote.currency}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                {quote.couponStatus === "applied" && (
-                  <p className="mt-3 flex items-center gap-1.5 text-sm text-primary">
-                    <Tag className="size-3.5" aria-hidden />
-                    Cupom {quote.couponCode} aplicado
-                  </p>
-                )}
-                {quote.couponStatus === "invalid" && (
-                  <p role="alert" className="mt-3 text-sm text-destructive">
-                    Cupom inválido
-                  </p>
-                )}
-                {quote.couponStatus === "expired" && (
-                  <p role="alert" className="mt-3 text-sm text-destructive">
-                    Cupom expirado
-                  </p>
-                )}
-
-                <dl className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-muted-foreground">Subtotal</dt>
-                    <dd className="text-foreground">
-                      {quote.subtotal} {quote.currency}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-muted-foreground">Desconto</dt>
-                    <dd className="text-foreground">
-                      {quote.discount} {quote.currency}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-muted-foreground">Taxa de rede</dt>
-                    <dd className="text-foreground">
-                      {quote.networkFee} {quote.currency}
-                    </dd>
-                  </div>
-                </dl>
-
-                <p className="mt-4 flex items-baseline justify-between gap-3 border-t border-border pt-4">
-                  <span className="text-sm font-semibold text-foreground">
-                    Total:
-                  </span>{" "}
-                  <span className="text-xl font-bold text-primary">
-                    {quote.total} {quote.currency}
-                  </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p id="wallet-error" className="mt-2 min-h-4 text-xs text-destructive">
+                  {errors.walletType}
                 </p>
+              </fieldset>
 
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={
-                    createOrder.isPending ||
-                    quote.hasAvailabilityIssue ||
-                    quoteQuery.isFetching
-                  }
-                  className={cn(
-                    buttonVariants({ size: "lg" }),
-                    "mt-5 h-11 w-full text-sm",
-                  )}
-                >
-                  {createOrder.isPending
-                    ? "Processando..."
-                    : "Confirmar pedido"}
-                </button>
+              <button
+                type="submit"
+                form={FORM_ID}
+                disabled={confirmDisabled}
+                className="mt-2 flex h-[46px] w-full items-center justify-center rounded-[4px] bg-primary text-[15px] font-bold text-primary-foreground transition-colors hover:bg-primary/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight disabled:pointer-events-none disabled:opacity-50"
+              >
+                {createOrder.isPending ? "Processando..." : "Confirmar compra"}
+              </button>
 
-                <p className="mt-3 text-center text-xs text-muted-foreground">
-                  Pagamento simulado para fins de demonstração.
-                </p>
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                Pagamento simulado para fins de demonstração.
+              </p>
 
-                {createOrder.isError && (
-                  <div className="mt-3 space-y-2">
-                    <p
-                      role="alert"
-                      className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                    >
-                      <TriangleAlert className="size-4 shrink-0" aria-hidden />
-                      {messageFromError(createOrder.error)}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        createOrder.reset();
-                        void quoteQuery.refetch();
-                      }}
-                      className={cn(
-                        buttonVariants({ variant: "outline", size: "lg" }),
-                        "h-10 w-full text-sm",
-                      )}
-                    >
-                      Refazer cotação
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+              {createOrder.isError && (
+                <div className="mt-3 space-y-2">
+                  <p
+                    role="alert"
+                    className="flex items-center gap-2 rounded-[4px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                  >
+                    <TriangleAlert className="size-4 shrink-0" aria-hidden />
+                    {messageFromError(createOrder.error)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      createOrder.reset();
+                      void quoteQuery.refetch();
+                    }}
+                    className="flex h-10 w-full items-center justify-center rounded-[4px] border border-primary text-sm font-bold text-highlight transition-colors hover:bg-primary/10"
+                  >
+                    Refazer cotação
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </aside>
       </div>
     </CheckoutShell>

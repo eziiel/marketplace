@@ -1,18 +1,26 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Search, ShoppingCart, User } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Link, useLocation, useNavigate, useSearch } from "@tanstack/react-router";
+import { LogIn, Search, ShoppingCart, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { useCartCount } from "@/features/cart/hooks/use-cart-count";
 
 export interface NavItem {
   label: string;
-  href: string;
+  hash?: string;
 }
 
+const NAV_ACTIVE_OPTIONS = {
+  exact: true,
+  includeSearch: false,
+  includeHash: true,
+} as const;
+
 const defaultNavItems: NavItem[] = [
-  { label: "Início", href: "/" },
-  { label: "Mercado", href: "/#catalogo" },
-  { label: "Criadores", href: "/#criadores" },
-  { label: "Aprenda", href: "/#aprenda" },
+  { label: "Início" },
+  { label: "Mercado", hash: "catalogo" },
+  { label: "Criadores", hash: "criadores" },
+  { label: "Aprenda", hash: "aprenda" },
 ];
 
 export interface SiteHeaderProps {
@@ -22,150 +30,226 @@ export interface SiteHeaderProps {
   userName?: string;
   activeNav?: string;
   onLogout?: () => void;
-  onSearch?: () => void;
   className?: string;
+}
+
+interface KeyedState<T> {
+  key: string;
+  value: T;
 }
 
 export function SiteHeader({
   navItems = defaultNavItems,
-  cartCount = 0,
+  cartCount,
   isAuthenticated = false,
   userName,
-  activeNav = "Início",
+  activeNav,
   onLogout,
-  onSearch,
   className,
 }: SiteHeaderProps) {
   const navigate = useNavigate();
+  const { hash } = useLocation();
+  const search = useSearch({ strict: false }) as { search?: unknown };
+  const currentSearch =
+    typeof search.search === "string" ? search.search : "";
 
-  const handleSearch =
-    onSearch ??
-    (() =>
-      void navigate({
-        to: "/",
-        search: { search: "", page: 1, sort: "price_asc" },
-      }));
+  const liveCartCount = useCartCount();
+  const count = cartCount ?? liveCartCount;
+
+  const [openState, setOpenState] = useState<KeyedState<boolean> | null>(null);
+  const [termState, setTermState] = useState<KeyedState<string> | null>(null);
+  const [autoFocus, setAutoFocus] = useState(false);
+
+  const searchOpen =
+    openState?.key === currentSearch
+      ? openState.value
+      : currentSearch.length > 0;
+  const term = termState?.key === currentSearch ? termState.value : currentSearch;
+
+  const resolvedActiveNav =
+    activeNav ??
+    navItems.find((item) => item.hash !== undefined && item.hash === hash)
+      ?.label ??
+    "Início";
+
+  function toggleSearch() {
+    setAutoFocus(!searchOpen);
+    setOpenState({ key: currentSearch, value: !searchOpen });
+  }
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const value = term.trim();
+
+    void navigate({
+      to: "/",
+      search: { page: 1, search: value.length > 0 ? value : undefined },
+      hash: "catalogo",
+    });
+  }
 
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 w-full border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70",
+        "sticky top-0 z-40 w-full border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/80",
         className,
       )}
     >
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link
-          to="/"
-          search={{ search: "", page: 1, sort: "price_asc" }}
-          className="flex items-center gap-2 text-foreground"
-          aria-label="Kurio — página inicial"
-        >
-          <span
-            aria-hidden
-            className="grid size-7 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground"
-          >
-            k
-          </span>
-          <span className="text-lg font-semibold lowercase tracking-tight">
-            kurio
-          </span>
-        </Link>
-
-        <nav
-          aria-label="Principal"
-          className="absolute left-1/2 hidden -translate-x-1/2 md:block"
-        >
-          <ul className="flex items-center gap-7 text-sm">
-            {navItems.map((item) => {
-              const active = item.label === activeNav;
-              return (
-                <li key={item.label}>
-                  <a
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "relative py-1 transition-colors",
-                      active
-                        ? "font-medium text-primary"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {item.label}
-                    {active && (
-                      <span
-                        aria-hidden
-                        className="absolute -bottom-0.5 left-0 h-0.5 w-full rounded-full bg-primary"
-                      />
-                    )}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <button
-            type="button"
-            onClick={handleSearch}
-            aria-label="Pesquisar coleções"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "icon" }),
-              "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Search aria-hidden />
-          </button>
-
+      <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-8">
+        <div className="grid h-[68px] grid-cols-[1fr_auto_1fr] items-center gap-4">
           <Link
-            to="/cart"
-            aria-label={
-              cartCount > 0 ? `Carrinho, ${cartCount} itens` : "Carrinho, vazio"
-            }
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "icon" }),
-              "relative text-muted-foreground hover:text-foreground",
-            )}
+            to="/"
+            search={{ page: 1 }}
+            className="text-sm font-bold tracking-[0.25em] text-foreground focus-visible:outline-2 focus-visible:outline-highlight"
           >
-            <ShoppingCart aria-hidden />
-            {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
-                {cartCount > 99 ? "99+" : cartCount}
-              </span>
-            )}
+            KURIO
           </Link>
 
-          {isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              {userName && (
-                <span className="hidden max-w-32 truncate text-sm text-muted-foreground sm:inline">
-                  Olá, <span className="text-foreground">{userName}</span>
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={onLogout}
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "h-9 px-3",
-                )}
-              >
-                Sair
-              </button>
-            </div>
-          ) : (
-            <Link
-              to="/login"
+          <nav
+            aria-label="Principal"
+            className="hidden h-full justify-self-center md:block"
+          >
+            <ul className="flex h-full items-center gap-5 text-[15px] lg:gap-10">
+              {navItems.map((item) => {
+                const active = item.label === resolvedActiveNav;
+
+                return (
+                  <li key={item.label} className="h-full">
+                    <Link
+                      to="/"
+                      search={{ page: 1 }}
+                      hash={item.hash}
+                      activeOptions={NAV_ACTIVE_OPTIONS}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "relative flex h-full items-center transition-colors focus-visible:outline-2 focus-visible:outline-highlight",
+                        active
+                          ? "font-medium text-highlight"
+                          : "text-foreground hover:text-highlight",
+                      )}
+                    >
+                      {item.label}
+                      {active && (
+                        <span
+                          aria-hidden
+                          className="absolute bottom-0 left-0 h-0.5 w-full bg-highlight"
+                        />
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          <div className="flex items-center justify-self-end gap-1.5 sm:gap-3">
+            <button
+              type="button"
+              onClick={toggleSearch}
+              aria-label={searchOpen ? "Fechar busca" : "Abrir busca"}
+              aria-expanded={searchOpen}
+              aria-controls="site-search"
               className={cn(
-                buttonVariants({ size: "lg" }),
-                "h-9 gap-1.5 px-4 font-semibold",
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "size-9 text-foreground hover:text-highlight",
               )}
             >
-              <User className="size-4" aria-hidden />
-              Entrar
+              {searchOpen ? (
+                <X className="size-5" aria-hidden />
+              ) : (
+                <Search className="size-5" aria-hidden />
+              )}
+            </button>
+
+            <Link
+              to="/cart"
+              aria-label={
+                count > 0
+                  ? `Carrinho, ${count} ${count === 1 ? "item" : "itens"}`
+                  : "Carrinho, vazio"
+              }
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "relative size-9 text-foreground hover:text-highlight",
+              )}
+            >
+              <ShoppingCart className="size-5" aria-hidden />
+              {count > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                  {count > 99 ? "99+" : count}
+                </span>
+              )}
             </Link>
-          )}
+
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                {userName && (
+                  <Link
+                    to="/profile"
+                    className="hidden max-w-32 truncate text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline"
+                  >
+                    Olá, <span className="text-foreground">{userName}</span>
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    "h-9 rounded-[4px] px-3",
+                  )}
+                >
+                  Sair
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className={cn(
+                  buttonVariants({ size: "lg" }),
+                  "h-9 gap-2 rounded-[4px] px-4 text-sm font-bold",
+                )}
+              >
+                <LogIn className="size-4" aria-hidden />
+                Entrar
+              </Link>
+            )}
+          </div>
         </div>
+
+        {searchOpen && (
+          <form
+            id="site-search"
+            role="search"
+            onSubmit={submitSearch}
+            className="flex items-center gap-2 pb-3 md:justify-end"
+          >
+            <label htmlFor="site-search-input" className="sr-only">
+              Buscar NFTs
+            </label>
+            <input
+              id="site-search-input"
+              type="search"
+              autoFocus={autoFocus}
+              value={term}
+              onChange={(event) =>
+                setTermState({ key: currentSearch, value: event.target.value })
+              }
+              placeholder="Buscar NFTs..."
+              className="h-9 w-full rounded-[4px] border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-highlight focus-visible:outline-none md:w-72"
+            />
+            <button
+              type="submit"
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "h-9 rounded-[4px] px-3 text-sm font-semibold",
+              )}
+            >
+              Buscar
+            </button>
+          </form>
+        )}
       </div>
     </header>
   );

@@ -38,7 +38,7 @@ test.describe("Favoritos", () => {
   }) => {
     await page.goto("/");
 
-    const heart = favoriteToggle(page, "Genesis NFT");
+    const heart = favoriteToggle(page, "Emerald Ape #042");
     await expect(heart).toBeVisible();
     await heart.click();
 
@@ -51,7 +51,7 @@ test.describe("Favoritos", () => {
   test("usuário autenticado adiciona e remove favoritos", async ({ page }) => {
     await loginUI(page, ANA);
 
-    const genesis = favoriteToggle(page, "Genesis NFT");
+    const genesis = favoriteToggle(page, "Emerald Ape #042");
     await expect(genesis).toHaveAttribute("aria-pressed", "false");
 
     await genesis.click();
@@ -64,13 +64,13 @@ test.describe("Favoritos", () => {
   test("favoritos persistem após recarregar a página", async ({ page }) => {
     await loginUI(page, ANA);
 
-    const genesis = favoriteToggle(page, "Genesis NFT");
+    const genesis = favoriteToggle(page, "Emerald Ape #042");
     await genesis.click();
     await expect(genesis).toHaveAttribute("aria-pressed", "true");
 
     await page.reload();
 
-    await expect(favoriteToggle(page, "Genesis NFT")).toHaveAttribute(
+    await expect(favoriteToggle(page, "Emerald Ape #042")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -78,31 +78,31 @@ test.describe("Favoritos", () => {
 
   test("favoritos são isolados entre Ana e Bruno", async ({ page }) => {
     await loginUI(page, ANA);
-    await favoriteToggle(page, "Genesis NFT").click();
-    await expect(favoriteToggle(page, "Genesis NFT")).toHaveAttribute(
+    await favoriteToggle(page, "Emerald Ape #042").click();
+    await expect(favoriteToggle(page, "Emerald Ape #042")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     await logoutUI(page);
 
     await loginUI(page, BRUNO);
-    await expect(favoriteToggle(page, "Genesis NFT")).toHaveAttribute(
+    await expect(favoriteToggle(page, "Emerald Ape #042")).toHaveAttribute(
       "aria-pressed",
       "false",
     );
-    await favoriteToggle(page, "Cyber Ape").click();
-    await expect(favoriteToggle(page, "Cyber Ape")).toHaveAttribute(
+    await favoriteToggle(page, "Sage Nomad #009").click();
+    await expect(favoriteToggle(page, "Sage Nomad #009")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     await logoutUI(page);
 
     await loginUI(page, ANA);
-    await expect(favoriteToggle(page, "Genesis NFT")).toHaveAttribute(
+    await expect(favoriteToggle(page, "Emerald Ape #042")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    await expect(favoriteToggle(page, "Cyber Ape")).toHaveAttribute(
+    await expect(favoriteToggle(page, "Sage Nomad #009")).toHaveAttribute(
       "aria-pressed",
       "false",
     );
@@ -112,7 +112,7 @@ test.describe("Favoritos", () => {
     page,
   }) => {
     await page.goto("/");
-    await expect(favoriteToggle(page, "Genesis NFT")).toBeVisible();
+    await expect(favoriteToggle(page, "Emerald Ape #042")).toBeVisible();
 
     const statuses = await page.evaluate(async () => {
       const get = await fetch("/api/favorites");

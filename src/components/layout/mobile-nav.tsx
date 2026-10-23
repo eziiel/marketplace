@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Home, Heart, Compass, ShoppingCart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCartCount } from "@/features/cart/hooks/use-cart-count";
 
 export interface MobileNavProps {
   cartCount?: number;
@@ -10,7 +11,10 @@ export interface MobileNavProps {
 const itemClass =
   "flex flex-1 flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none";
 
-export function MobileNav({ cartCount = 0, className }: MobileNavProps) {
+export function MobileNav({ cartCount, className }: MobileNavProps) {
+  const liveCartCount = useCartCount();
+  const count = cartCount ?? liveCartCount;
+
   return (
     <nav
       aria-label="Navegação"
@@ -52,15 +56,15 @@ export function MobileNav({ cartCount = 0, className }: MobileNavProps) {
           <Link
             to="/cart"
             aria-label={
-              cartCount > 0 ? `Carrinho, ${cartCount} itens` : "Carrinho"
+              count > 0 ? `Carrinho, ${count} itens` : "Carrinho"
             }
             className={cn(itemClass, "relative")}
           >
             <span className="relative">
               <ShoppingCart className="size-5" aria-hidden />
-              {cartCount > 0 && (
+              {count > 0 && (
                 <span className="absolute -top-1.5 -right-2 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
-                  {cartCount > 99 ? "99+" : cartCount}
+                  {count > 99 ? "99+" : count}
                 </span>
               )}
             </span>
@@ -68,7 +72,7 @@ export function MobileNav({ cartCount = 0, className }: MobileNavProps) {
         </li>
 
         <li className="flex flex-1">
-          <Link to="/login" aria-label="Perfil" className={itemClass}>
+          <Link to="/profile" aria-label="Perfil" className={itemClass}>
             <User className="size-5" aria-hidden />
           </Link>
         </li>

@@ -51,7 +51,7 @@ test.describe("Tempo real", () => {
     page,
   }) => {
     await page.goto("/nfts/1");
-    await expect(page.getByText(/Preço: 0\.5 ETH/)).toBeVisible();
+    await expect(page.getByText(/Preço: 1\.19 ETH/)).toBeVisible();
     await expect(page.getByText("Disponíveis: 5")).toBeVisible();
 
     await waitForRealtime(page);
@@ -68,7 +68,7 @@ test.describe("Tempo real", () => {
 
   test("nft.updated com versão antiga é ignorado", async ({ page }) => {
     await page.goto("/nfts/1");
-    await expect(page.getByText(/Preço: 0\.5 ETH/)).toBeVisible();
+    await expect(page.getByText(/Preço: 1\.19 ETH/)).toBeVisible();
 
     await waitForRealtime(page);
 
@@ -97,16 +97,22 @@ test.describe("Tempo real", () => {
     await login(page);
 
     await page.goto("/nfts/1");
-    await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+    await page.getByRole("button", { name: "Comprar" }).click();
     await expect(page.getByText("Item adicionado ao carrinho!")).toBeVisible();
 
     await page.goto("/checkout");
     await expect(
-      page.getByRole("heading", { name: "Finalizar compra" }),
+      page.getByRole("heading", { name: "Perfil do colecionador" }),
     ).toBeVisible();
-    await expect(page.getByText(/Total:/)).toBeVisible();
+    await expect(page.getByText("Total", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Confirmar pedido" }).click();
+    await page.getByLabel("Nome de usuário").fill("ana.silva");
+    await page.getByLabel("Nome do perfil").fill("Ana Colecionadora");
+    await page
+      .getByLabel("Endereço da carteira")
+      .fill("0x1234567890abcdef1234567890abcdef12345678");
+    await page.getByLabel("Tipo de carteira").selectOption("metamask");
+    await page.getByRole("button", { name: "Confirmar compra" }).click();
 
     await expect(
       page.getByRole("heading", { name: "Pedido pendente" }),

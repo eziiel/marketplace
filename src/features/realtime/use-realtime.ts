@@ -40,6 +40,7 @@ export function useRealtime() {
           : old,
       );
       void queryClient.invalidateQueries({ queryKey: ["nfts"] });
+      void queryClient.invalidateQueries({ queryKey: ["quote"] });
     }
 
     function handleOrderUpdated(payload: OrderUpdatedEvent) {

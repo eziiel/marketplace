@@ -86,15 +86,20 @@ fica persistido no `localStorage` do navegador.
 
 - **Cadastro** de usuários com validação (nome, e-mail, senha) e persistência.
 - **Autenticação** simulada (login/logout) com token em `localStorage`.
-- **Catálogo** com busca, ordenação por preço e paginação.
-- **Detalhe do NFT** com seleção de quantidade e limite de estoque.
-- **Carrinho** por sessão (adicionar, atualizar quantidade, remover), com validação de estoque.
-- **Checkout**: seleção de rede, cupom de desconto, cotação (quote) e confirmação do pedido.
+- **Catálogo** com 36 NFTs, busca, filtros por coleção, rede e faixa de preço, abas (novos lançamentos / em alta), ordenação e paginação (9 por página) — tudo no estado da URL.
+- **Detalhe do NFT** com galeria, avaliações de colecionadores, edição, quantidade com limite de estoque, favoritos e compartilhamento.
+- **Carrinho** por sessão (adicionar, atualizar quantidade, remover), com validação de estoque, cupom e resumo (subtotal, desconto, taxa estimada e total) vindos da cotação.
+- **Checkout**: perfil do colecionador com validação, seleção de rede e carteira, cupom de desconto, cotação (quote) e confirmação do pedido.
 - **Idempotência** na criação de pedidos (header `Idempotency-Key`), com tratamento de conflito (409).
 - **Pedidos**: estados `pending → confirmed/refused`, recibo e link de "explorador".
 - **Favoritos** por usuário (persistidos e isolados entre contas).
+- **Perfil do colecionador** (`/profile`): nome de exibição, nome de usuário, e-mail,
+  nome ENS, apelido da carteira, avatar (PNG/JPEG/WebP até 512 KB) e troca de senha
+  com validação da senha atual e confirmação da nova.
+- **Carteiras** (`/profile/wallets`): carteira principal e secundária com rede, tipo,
+  endereço `0x` verificado, ENS e código de indicação; criar, editar e remover.
 - **Tempo real**: atualização de preço/estoque de NFTs e do status do pedido via Socket.IO simulado.
-- **Isolamento por usuário**: carrinho, pedidos e favoritos não vazam entre contas.
+- **Isolamento por usuário**: carrinho, pedidos, favoritos, perfil e carteiras não vazam entre contas.
 
 ## Como avaliar o projeto
 
@@ -105,7 +110,7 @@ fica persistido no `localStorage` do navegador.
 | `WELCOME10` | 10% de desconto     |
 | `EXPIRED10` | Cupom expirado (rejeitado) |
 
-Aplique no checkout, no campo **Cupom de desconto**.
+Aplique no carrinho (campo **Código promocional**) ou no checkout (link **Aplique aqui**). O cupom aplicado no carrinho é mantido até o pagamento.
 
 ### Cenários de falha (checkout)
 
@@ -138,7 +143,11 @@ Para restaurar o estado inicial: `await fetch("/api/test/reset", { method: "POST
 2. Faça login como **Ana**, favorite alguns NFTs, recarregue a página (persistem).
 3. Adicione itens ao carrinho, vá ao **checkout**, aplique `WELCOME10`, confirme o pedido e veja a **confirmação** em tempo real.
 4. Teste um cenário de falha (ex.: `payment_refused`) e confirme que o carrinho é preservado.
-5. Faça logout, entre como **Bruno** e confirme que favoritos/carrinho/pedidos são isolados.
+5. Abra **Meu perfil** pelo "Olá, Ana" no cabeçalho, complete os dados, cadastre uma
+   carteira em **Carteiras** e volte ao checkout: a carteira aparece em "Usar carteira
+   cadastrada" e preenche o formulário.
+6. Faça logout, entre como **Bruno** e confirme que favoritos, carrinho, pedidos,
+   perfil e carteiras são isolados.
 
 ## Testes (Playwright)
 
@@ -151,8 +160,9 @@ O Playwright sobe o preview automaticamente (`playwright.config.ts` → `webServ
 então não é preciso iniciar o servidor manualmente.
 
 Cobertura E2E atual: autenticação, cadastro, catálogo, detalhe do NFT, carrinho,
-checkout (incluindo idempotência e recusa), cenários de falha, tempo real e
-**favoritos** (`e2e/favorites.spec.ts`).
+checkout (incluindo idempotência e recusa), cenários de falha, tempo real,
+**favoritos** (`e2e/favorites.spec.ts`), **perfil** (`e2e/profile.spec.ts`) e
+**carteiras** (`e2e/wallets.spec.ts`).
 
 ## Arquitetura
 
@@ -170,7 +180,8 @@ usuário, favoritos, idempotência e tempo real) estão documentadas em
 - **Dados não são compartilhados entre dispositivos/navegadores** — cada navegador
   tem seu próprio estado.
 - **Senhas dos usuários de exemplo** ficam em texto puro nos mocks (apenas demo).
+  Senhas trocadas pela tela de perfil são gravadas como `SHA-256(salt:senha)`, nunca
+  em claro, e o texto puro do usuário cadastrado é apagado na troca.
 - **Tempo real é simulado** dentro da própria aba (não há servidor WebSocket real);
   eventos não se propagam entre abas/dispositivos distintos.
-- **Catálogo reduzido** a poucos NFTs de exemplo para facilitar a avaliação.
 - O MSW roda **em produção** por design, para que a demo funcione sem infraestrutura.

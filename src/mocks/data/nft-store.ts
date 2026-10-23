@@ -5,7 +5,7 @@ export interface StoredNft extends NFT {
   version: number;
 }
 
-const STORAGE_KEY = "marketplace-nfts";
+const STORAGE_KEY = "marketplace-nfts-v2";
 
 function seedStore(): Record<string, StoredNft> {
   const store: Record<string, StoredNft> = {};
@@ -28,10 +28,37 @@ function readStore(): Record<string, StoredNft> {
       return fresh;
     }
 
-    return JSON.parse(stored) as Record<string, StoredNft>;
+    return mergeSeed(JSON.parse(stored) as Record<string, StoredNft>);
   } catch {
     return seedStore();
   }
+}
+
+function mergeSeed(
+  store: Record<string, StoredNft>,
+): Record<string, StoredNft> {
+  let changed = false;
+
+  for (const nft of seed) {
+    const current = store[nft.id];
+
+    if (!current) {
+      store[nft.id] = { ...nft, version: 1 };
+      changed = true;
+      continue;
+    }
+
+    if (current.network === undefined || current.tokenId === undefined) {
+      store[nft.id] = { ...nft, ...current, network: current.network ?? nft.network };
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    writeStore(store);
+  }
+
+  return store;
 }
 
 function writeStore(store: Record<string, StoredNft>): void {

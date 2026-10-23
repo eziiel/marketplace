@@ -8,6 +8,8 @@ export interface QuoteLineItem {
   nftId: string;
   edition: string;
   name: string;
+  tokenId: string;
+  image: string;
   unitPrice: string;
   quantity: number;
   lineTotal: string;

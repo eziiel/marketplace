@@ -1,14 +1,18 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
-import type { NftListParams } from "../types/nft";
+import type { NftSort } from "../types/nft";
 
-type SortOption = NonNullable<NftListParams["sort"]>;
+const SORT_OPTIONS: { value: NftSort; label: string }[] = [
+  { value: "recent", label: "Listados recentemente" },
+  { value: "price_asc", label: "Menor preço" },
+  { value: "price_desc", label: "Maior preço" },
+];
 
 export function CatalogSort() {
   const navigate = useNavigate({ from: "/" });
   const { sort } = useSearch({ from: "/" });
 
-  function handleSortChange(value: SortOption) {
+  function handleSortChange(value: NftSort) {
     void navigate({
       search: (previous) => ({
         ...previous,
@@ -19,20 +23,27 @@ export function CatalogSort() {
   }
 
   return (
-    <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-      <span className="hidden sm:inline">Ordenar por</span>
+    <label className="flex shrink-0 items-center gap-1 text-sm text-foreground">
+      <span>Ordenar por:</span>
       <span className="relative">
         <select
-          value={sort ?? "price_asc"}
-          onChange={(event) => handleSortChange(event.target.value as SortOption)}
-          className="h-11 appearance-none rounded-full border border-border bg-card pr-9 pl-4 text-sm text-foreground transition-colors focus:border-primary focus:outline-none"
+          value={sort ?? "recent"}
+          onChange={(event) => handleSortChange(event.target.value as NftSort)}
+          className="h-8 cursor-pointer appearance-none bg-transparent pr-6 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-highlight"
         >
-          <option value="price_asc">Menor preço</option>
-          <option value="price_desc">Maior preço</option>
+          {SORT_OPTIONS.map((option) => (
+            <option
+              key={option.value}
+              value={option.value}
+              className="bg-card text-foreground"
+            >
+              {option.label}
+            </option>
+          ))}
         </select>
         <ChevronDown
           aria-hidden
-          className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute top-1/2 right-0 size-4 -translate-y-1/2 text-foreground"
         />
       </span>
     </label>

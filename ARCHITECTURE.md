@@ -163,6 +163,111 @@ A confirmação do pedido (`pending → confirmed`) na UI é dirigida por esses 
   `fetch` para falar com o MSW quando precisam exercitar a API diretamente (o MSW vive no
   navegador, então requisições do processo Node não seriam interceptadas).
 
+## Desvios do Figma e decisões de UX (Mercado)
+
+As telas de detalhe do NFT, carrinho e pagamento seguem os frames `public/img/mercado*/`. Pontos em que a implementação diverge ou completa o layout:
+
+- **Breadcrumb do detalhe** inclui o nome do NFT como item atual (o frame mostra só "Início / Mercado"), para manter o padrão das outras duas telas.
+- **Galeria**: cada NFT tem `gallery` com 2 a 4 imagens da mesma série; o zoom usa `<dialog>` nativo (foco preso e Esc). O frame mostra 4 miniaturas iguais.
+- **Edições**: os chips 1/1, 1/10, 1/50 e Aberta são sempre exibidos; só a edição do NFT fica selecionada e as demais aparecem como indisponíveis (`aria-disabled`), cobrindo o cenário de edição indisponível.
+- **Disponibilidade**: "Disponíveis: N" aparece ao lado do seletor de quantidade (não está no frame) para explicar o limite de compra.
+- **Avaliações**: `GET /api/nfts/:id/reviews` gera avaliações determinísticas por NFT no MSW; a média e a contagem no cabeçalho vêm desse endpoint.
+- **Carrinho**: o resumo (subtotal, desconto, taxa estimada e total) vem de `POST /api/quote`, que passou a aceitar visitantes (carrinho por `X-Session-Id`); a taxa usa a primeira rede como estimativa. O cupom aplicado no carrinho é guardado em `sessionStorage` e reaproveitado no pagamento.
+- **Pagamento**: "Rede" já vem preenchida com a primeira rede (o frame mostra placeholder) para que a cotação exista desde o início. "Código de indicação" e "Nome ENS" são opcionais, apesar do asterisco no frame, para não bloquear a compra. "Tipo de carteira" no formulário e as opções de "Carteira e rede" controlam o mesmo estado. Os dados do colecionador são validados no cliente e ainda não são enviados ao pedido.
+- **Mobile**: não há frames para essas telas; o layout empilha as colunas e, no carrinho, cada linha vira dois níveis (nome/remover e preço/quantidade/total).
+- **Headings globais**: as regras de `h1`, `h2`, `p` e `code` em `src/index.css` passaram para `@layer base` para que as utilities do Tailwind consigam sobrescrevê-las; antes disso, tamanhos e margens definidos nos componentes eram ignorados.
+
+## Perfil do colecionador e carteiras
+
+Duas rotas protegidas (`beforeLoad: requireAuth`) compartilham o mesmo shell
+(`features/profile/components/profile-shell.tsx`): cabeçalho, trilha, menu lateral
+"Meu perfil" e rodapé.
+
+| Rota | Tela |
+| ---- | ---- |
+| `/profile` | Dados do perfil, avatar e alteração de senha |
+| `/profile/wallets` | Carteira principal e secundária |
+
+### Contratos REST
+
+| Método | Rota | Corpo | Respostas |
+| ------ | ---- | ----- | --------- |
+| `GET` | `/api/profile` | — | `200 { profile }`, `401` |
+| `PUT` | `/api/profile` | `displayName`, `username`, `email`, `ensName`, `ensDomain`, `walletNickname`, `avatar` | `200 { profile }`, `401`, `409` (e-mail/usuário em uso), `422 { message, errors }` |
+| `POST` | `/api/profile/password` | `currentPassword`, `newPassword`, `confirmPassword` | `200 { changedAt }`, `401`, `404`, `422 { message, errors }` |
+| `GET` | `/api/wallets` | — | `200 { wallets }`, `401` |
+| `POST` | `/api/wallets` | `WalletInput` | `201 { wallet }`, `401`, `409` (tipo ou endereço duplicado), `422 { message, errors }` |
+| `PUT` | `/api/wallets/:id` | `WalletInput` | `200 { wallet }`, `401`, `404`, `409`, `422` |
+| `DELETE` | `/api/wallets/:id` | — | `200 { wallets }`, `401`, `404` |
+
+`WalletInput` = `kind` (`primary` \| `secondary`), `displayName`, `walletNickname`,
+`networkId`, `profileName`, `address`, `secondaryAddress`, `walletType`,
+`referralCode`, `email`, `ensName`, `ensDomain`.
+
+Erros de validação chegam em `422` com `errors` por campo. A interface aplica cada
+mensagem ao campo correspondente (`aria-describedby` + `role="alert"`) e move o foco
+para o primeiro inválido, na mesma ordem usada pela validação do cliente.
+
+### Validação em uma fonte só
+
+Os handlers MSW importam `validateProfileForm`, `validatePasswordForm` e
+`validateWalletForm` de `features/profile/lib`. Cliente e "servidor" aplicam a mesma
+regra; o mock acrescenta apenas o que depende de estado global (unicidade de e-mail,
+nome de usuário e endereço, existência da rede e do tipo de carteira).
+
+### Senha: hash em vez de texto puro
+
+Senhas alteradas pelo perfil **não** são guardadas em claro. `data/password-store.ts`
+gera um salt aleatório por usuário e grava `SHA-256(salt:senha)` em
+`marketplace-password-hashes`. `verifyPassword` consulta primeiro esse registro e só
+cai no texto puro das fixtures quando o usuário nunca trocou a senha. Ao trocar, o
+texto puro do usuário cadastrado é apagado (`clearRegisteredPassword`). As senhas das
+contas de exemplo continuam em claro em `data/users.ts` por serem fixtures de demo.
+
+### Persistência e isolamento
+
+`marketplace-profiles` e `marketplace-wallets` são mapas `userId -> dados`, no mesmo
+formato dos favoritos. As queries usam `["profile", token]` e `["wallets", token]`,
+então trocar de conta troca a chave do cache e nenhum dado vaza entre usuários.
+Política: `retry: false` (erro de validação e 401 não devem ser repetidos),
+`staleTime` de 30s e invalidação após cada mutation. A remoção de carteira é
+otimista, com rollback do snapshot anterior em caso de falha.
+
+### Integração com o checkout
+
+O checkout deixou de montar os dados do colecionador a partir do usuário da sessão e
+passou a ler `GET /api/profile`. As carteiras cadastradas aparecem em
+`SavedWalletPicker`; escolher uma preenche endereço, rede, tipo, nome do perfil e
+código de indicação do formulário existente. Cotação, cupom, idempotência, conflitos
+e eventos Socket.IO não foram tocados.
+
+### Decisões e desvios do Figma
+
+- **Um único "Salvar"**: o frame mostra um botão só, abaixo da troca de senha. O
+  formulário segue isso: os campos de senha são opcionais e, quando preenchidos,
+  disparam a segunda requisição depois que o perfil é salvo. Se o perfil salva e a
+  senha falha, a tela diz exatamente isso.
+- **Campos obrigatórios**: o asterisco segue o frame, inclusive "Código de indicação"
+  e "Nome ENS" na tela de carteiras, que são opcionais no checkout.
+- **ENS**: o frame mostra `[.eth ∨]` antes do campo; o seletor aceita `.eth`, `.xyz`
+  e `.nft` e o nome é validado como rótulo DNS.
+- **"Igual à carteira principal"**: copia os dados do titular, menos o endereço, que
+  precisa ser diferente (endereço duplicado responde `409`).
+- **Itens fora de escopo**: atividade, lista de interesse, ofertas, arquivos baixados
+  e suporte aparecem no menu como desabilitados (`aria-disabled` + texto para leitor
+  de tela), nunca como links que simulam sucesso. No mobile ficam ocultos. O rodapé
+  segue a mesma regra: "Meu perfil" aponta para `/profile`, "Carteira e segurança"
+  para `/profile/wallets`, as coleções filtram o catálogo, o e-mail e o telefone viram
+  `mailto:`/`tel:` e o restante fica como texto desabilitado, sem rotas novas.
+- **Cabeçalho**: os frames mostram o botão "Entrar" mesmo nas telas de conta; a
+  aplicação mostra o estado autenticado real.
+- **Avatar**: aceita PNG, JPEG ou WebP até 512 KB, convertido em data URL e guardado
+  junto do perfil. Sem frame de upload no Figma.
+- **Mobile**: sem frame para essas telas; o menu vira uma faixa horizontal rolável
+  com a aba ativa sublinhada e o conteúdo empilha em uma coluna.
+- **Marcador de obrigatório**: o asterisco usa `#f0805f` do frame, definido uma única
+  vez em `components/ui/field.tsx`.
+
 ## Principais trade-offs
 
 | Decisão | Ganho | Custo / limite |

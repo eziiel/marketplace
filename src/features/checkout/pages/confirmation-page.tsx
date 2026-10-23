@@ -105,7 +105,7 @@ export function ConfirmationPage() {
           </p>
           <Link
             to="/"
-            search={{ search: "", page: 1, sort: "price_asc" }}
+            search={{ page: 1 }}
             className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
           >
             Voltar ao catálogo
@@ -184,7 +184,7 @@ export function ConfirmationPage() {
       <div className="relative mx-auto max-w-xl overflow-hidden rounded-3xl border border-border bg-card">
         <Link
           to="/"
-          search={{ search: "", page: 1, sort: "price_asc" }}
+          search={{ page: 1 }}
           aria-label="Fechar"
           className="absolute top-4 right-4 grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
@@ -254,7 +254,7 @@ export function ConfirmationPage() {
                     className="flex items-start gap-3 text-sm"
                   >
                     <img
-                      src={nftImage(item.nftId)}
+                      src={item.image || nftImage(item.nftId)}
                       alt={item.name}
                       className="size-11 shrink-0 rounded-lg object-cover"
                     />
@@ -333,7 +333,7 @@ export function ConfirmationPage() {
 
           <Link
             to="/"
-            search={{ search: "", page: 1, sort: "price_asc" }}
+            search={{ page: 1 }}
             className={cn(
               buttonVariants({ variant: "outline", size: "lg" }),
               "mt-3 h-11 w-full text-sm",

@@ -43,3 +43,13 @@ export function subtract(a: string, b: string): string {
 export function percentage(value: string, percent: number): string {
   return format((parse(value) * BigInt(percent)) / 100n);
 }
+
+export function compare(a: string, b: string): number {
+  const left = parse(a);
+  const right = parse(b);
+
+  if (left < right) return -1;
+  if (left > right) return 1;
+
+  return 0;
+}

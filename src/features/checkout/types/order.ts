@@ -4,6 +4,7 @@ export interface OrderItem {
   nftId: string;
   edition: string;
   name: string;
+  image?: string;
   unitPrice: string;
   quantity: number;
   lineTotal: string;

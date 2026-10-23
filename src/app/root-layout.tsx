@@ -11,23 +11,15 @@ export function RootLayout() {
 
   function closeModal() {
     void navigate({
-      to: "/",
-      search: (previous) => ({
-        ...previous,
-        page: previous.page ?? 1,
-        auth: undefined,
-      }),
+      to: ".",
+      search: (previous) => ({ ...previous, auth: undefined }),
     });
   }
 
   function changeMode(next: AuthMode) {
     void navigate({
-      to: "/",
-      search: (previous) => ({
-        ...previous,
-        page: previous.page ?? 1,
-        auth: next,
-      }),
+      to: ".",
+      search: (previous) => ({ ...previous, auth: next }),
     });
   }
 
