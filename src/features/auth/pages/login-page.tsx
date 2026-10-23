@@ -130,7 +130,10 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={loginMutation.isPending}
-              className={cn(buttonVariants({ size: "lg" }), "h-11 w-full text-sm")}
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "h-11 w-full text-sm",
+              )}
             >
               {loginMutation.isPending ? "Entrando..." : "Entrar"}
             </button>
