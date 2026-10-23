@@ -24,8 +24,8 @@ export function CatalogSort() {
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-1 text-sm text-foreground">
-      <span aria-hidden>Ordenar por:</span>
+    <div className="flex min-w-0 items-center gap-1 text-sm text-foreground">
+      <span aria-hidden className="shrink-0">Ordenar por:</span>
       <SelectField
         id="catalog-sort"
         name="sort"
@@ -33,7 +33,7 @@ export function CatalogSort() {
         value={sort ?? "recent"}
         options={SORT_OPTIONS}
         onValueChange={(value) => handleSortChange(value as NftSort)}
-        className="h-8 w-auto cursor-pointer border-0 px-0 focus-visible:outline-2 focus-visible:outline-highlight"
+        className="h-8 w-auto min-w-0 cursor-pointer border-0 px-0 focus-visible:outline-2 focus-visible:outline-highlight"
       />
     </div>
   );

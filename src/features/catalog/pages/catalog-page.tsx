@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { SearchX, SlidersHorizontal, TriangleAlert } from "lucide-react";
@@ -18,11 +18,16 @@ import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
-import { NFT_NETWORK_LABELS, type NFT, type NftNetwork } from "../types/nft";
+import {
+  NFT_NETWORK_LABELS,
+  type NFT,
+  type NftListParams,
+  type NftNetwork,
+} from "../types/nft";
 import { getNfts } from "../api/get-nfts";
 import { getFeaturedNft } from "../api/get-featured-nft";
 import { heroImage } from "../lib/nft-image";
-import { formatEth, fromCents, toCents } from "../lib/price";
+import { formatEth, fromCents, toCents, trimDecimal } from "../lib/price";
 import { CatalogSidebar } from "../components/catalog-sidebar";
 import { CatalogFiltersDrawer } from "../components/catalog-filters-drawer";
 import { CatalogTabs } from "../components/catalog-tabs";
@@ -144,9 +149,20 @@ export function CatalogPage() {
   const favoriteIds = new Set(favorites.data?.nftIds ?? []);
   const isFavoritePending = addFavorite.isPending || removeFavorite.isPending;
 
+  const listParams: NftListParams = {
+    page: params.page,
+    search: params.search,
+    sort: params.sort,
+    collection: params.collection,
+    network: params.network,
+    minPrice: params.minPrice,
+    maxPrice: params.maxPrice,
+    tab: params.tab,
+  };
+
   const listQuery = useQuery({
-    queryKey: ["nfts", params],
-    queryFn: () => getNfts(params),
+    queryKey: ["nfts", "list", listParams],
+    queryFn: () => getNfts(listParams),
   });
 
   const featuredQuery = useQuery({
@@ -172,6 +188,20 @@ export function CatalogPage() {
     priceDraft && priceDraft.key === priceKey ? priceDraft.value : appliedPrice;
 
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const effectivePage = listQuery.data?.page;
+
+  useEffect(() => {
+    if (effectivePage === undefined || effectivePage === params.page) {
+      return;
+    }
+
+    void navigate({
+      to: "/",
+      replace: true,
+      search: (previous) => ({ ...previous, page: effectivePage }),
+    });
+  }, [effectivePage, params.page, navigate]);
 
   function handleFavorite(nft: NFT) {
     if (!getAuthToken()) {
@@ -223,8 +253,14 @@ export function CatalogPage() {
       to: "/",
       search: (previous) => ({
         ...previous,
-        minPrice: next.min > priceBounds.min ? fromCents(next.min) : undefined,
-        maxPrice: next.max < priceBounds.max ? fromCents(next.max) : undefined,
+        minPrice:
+          next.min > priceBounds.min
+            ? trimDecimal(fromCents(next.min))
+            : undefined,
+        maxPrice:
+          next.max < priceBounds.max
+            ? trimDecimal(fromCents(next.max))
+            : undefined,
         page: 1,
       }),
     });
@@ -246,6 +282,7 @@ export function CatalogPage() {
   );
 
   const items = listQuery.data?.items ?? [];
+  const total = listQuery.data?.total ?? 0;
 
   const sidebar = (
     <CatalogSidebar
@@ -337,12 +374,12 @@ export function CatalogPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
                 <CatalogTabs />
-                <div className="flex items-center gap-4">
+                <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                   <Button
                     variant="outline"
                     size="lg"
                     onClick={() => setFiltersOpen(true)}
-                    className="h-9 gap-1.5 rounded-[4px] px-3 lg:hidden"
+                    className="h-9 shrink-0 gap-1.5 rounded-[4px] px-3 lg:hidden"
                   >
                     <SlidersHorizontal className="size-4" aria-hidden />
                     Filtros
@@ -351,8 +388,19 @@ export function CatalogPage() {
                 </div>
               </div>
 
+              <p
+                aria-live="polite"
+                className="mt-5 text-sm text-muted-foreground"
+              >
+                {listQuery.isPending
+                  ? "Carregando NFTs..."
+                  : listQuery.isError
+                    ? "Não foi possível carregar os resultados."
+                    : `${total} ${total === 1 ? "NFT encontrado" : "NFTs encontrados"}`}
+              </p>
+
               {hasFilter && (
-                <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>Filtros ativos:</span>
                   {params.search && (
                     <FilterChip>Busca: “{params.search}”</FilterChip>
@@ -437,7 +485,7 @@ export function CatalogPage() {
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
       >
-        {sidebar}
+        {filtersOpen ? sidebar : null}
       </CatalogFiltersDrawer>
     </div>
   );

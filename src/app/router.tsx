@@ -6,6 +6,8 @@ import {
 } from "@tanstack/react-router";
 
 import { CatalogPage } from "@/features/catalog/pages/catalog-page";
+import { trimDecimal } from "@/features/catalog/lib/price";
+import { compare } from "@/lib/money";
 import { NftDetailsPage } from "@/features/catalog/pages/nft-details-page";
 import type {
   NftListParams,
@@ -35,7 +37,28 @@ function optionalString(value: unknown): string | undefined {
 }
 
 function optionalDecimal(value: unknown): string | undefined {
-  return typeof value === "string" && DECIMAL.test(value) ? value : undefined;
+  const raw =
+    typeof value === "number" && Number.isFinite(value) && value >= 0
+      ? String(value)
+      : typeof value === "string"
+        ? value.trim()
+        : "";
+
+  return DECIMAL.test(raw) ? trimDecimal(raw) : undefined;
+}
+
+function priceRange(
+  rawMin: unknown,
+  rawMax: unknown,
+): { minPrice?: string; maxPrice?: string } {
+  const minPrice = optionalDecimal(rawMin);
+  const maxPrice = optionalDecimal(rawMax);
+
+  if (minPrice && maxPrice && compare(minPrice, maxPrice) > 0) {
+    return { minPrice: maxPrice, maxPrice: minPrice };
+  }
+
+  return { minPrice, maxPrice };
 }
 
 function oneOf<T extends string>(
@@ -81,8 +104,7 @@ const catalogRoute = createRoute({
     sort: oneOf(search.sort, SORTS),
     collection: optionalString(search.collection),
     network: oneOf(search.network, NETWORKS),
-    minPrice: optionalDecimal(search.minPrice),
-    maxPrice: optionalDecimal(search.maxPrice),
+    ...priceRange(search.minPrice, search.maxPrice),
     tab: oneOf(search.tab, TABS),
   }),
 

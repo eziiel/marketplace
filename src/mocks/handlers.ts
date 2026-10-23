@@ -132,13 +132,22 @@ export const handlers = [
     const search = query.get("search")?.trim().toLowerCase();
     const collection = query.get("collection");
     const network = query.get("network");
-    const minPrice = query.get("minPrice");
-    const maxPrice = query.get("maxPrice");
+    const rawMin = query.get("minPrice");
+    const rawMax = query.get("maxPrice");
     const tab = query.get("tab");
     const sort = query.get("sort") ?? "recent";
     const pageParam = Number(query.get("page") ?? 1);
 
-    const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
+    const requestedPage =
+      Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
+
+    const validMin = rawMin && DECIMAL.test(rawMin) ? rawMin : null;
+    const validMax = rawMax && DECIMAL.test(rawMax) ? rawMax : null;
+    const inverted =
+      validMin !== null && validMax !== null && compare(validMin, validMax) > 0;
+
+    const minPrice = inverted ? validMax : validMin;
+    const maxPrice = inverted ? validMin : validMax;
 
     const all = listNfts();
     let filtered = all;
@@ -159,11 +168,11 @@ export const handlers = [
       filtered = filtered.filter((nft) => nft.network === network);
     }
 
-    if (minPrice && DECIMAL.test(minPrice)) {
+    if (minPrice !== null) {
       filtered = filtered.filter((nft) => compare(nft.price, minPrice) >= 0);
     }
 
-    if (maxPrice && DECIMAL.test(maxPrice)) {
+    if (maxPrice !== null) {
       filtered = filtered.filter((nft) => compare(nft.price, maxPrice) <= 0);
     }
 
@@ -185,6 +194,7 @@ export const handlers = [
 
     const total = sorted.length;
     const totalPages = Math.max(1, Math.ceil(total / NFT_PAGE_SIZE));
+    const page = Math.min(requestedPage, totalPages);
     const startIndex = (page - 1) * NFT_PAGE_SIZE;
 
     const response: NftListResponse = {

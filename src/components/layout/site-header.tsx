@@ -86,7 +86,11 @@ export function SiteHeader({
 
     void navigate({
       to: "/",
-      search: { page: 1, search: value.length > 0 ? value : undefined },
+      search: (previous) => ({
+        ...previous,
+        search: value.length > 0 ? value : undefined,
+        page: 1,
+      }),
       hash: "catalogo",
     });
   }
