@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Search, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 export interface NavItem {
   label: string;

@@ -60,7 +60,7 @@ export function NftCard({
             <div
               role="img"
               aria-label={nft.name}
-              className="grid size-full place-items-center bg-gradient-to-br from-secondary to-card"
+              className="grid size-full place-items-center bg-linear-to-br from-secondary to-card"
             >
               <ImageOff
                 className="size-8 text-muted-foreground/40"

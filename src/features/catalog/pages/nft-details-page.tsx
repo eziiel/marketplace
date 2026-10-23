@@ -11,7 +11,7 @@ import { Container } from "@/components/layout/container";
 import { SiteHeader } from "@/components/layout/site-header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
 import { getAuthToken } from "@/features/auth/lib/auth-token";

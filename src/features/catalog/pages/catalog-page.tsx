@@ -15,7 +15,7 @@ import { NftCard } from "../components/nft-card";
 import { Container } from "@/components/layout/container";
 import { SiteHeader } from "@/components/layout/site-header";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
 import { useAuthMe } from "@/features/auth/hooks/use-auth-me";
@@ -157,7 +157,7 @@ export function CatalogPage() {
 
       <main className="flex-1 pb-24 md:pb-12">
         <Container className="space-y-8 py-6 md:space-y-10 md:py-10">
-          <section className="overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card to-background p-6 md:p-12">
+          <section className="overflow-hidden rounded-3xl border border-border bg-linear-to-br from-card via-card to-background p-6 md:p-12">
             <p className="text-sm font-medium text-primary">
               Bem-vindo à Kurio
             </p>

@@ -4,7 +4,7 @@ import { Eye, EyeOff, TriangleAlert } from "lucide-react";
 
 import { useLogin } from "../hooks/use-login";
 import { Input } from "@/components/ui/input";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
 export function LoginPage() {

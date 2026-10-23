@@ -13,7 +13,7 @@ import { getNftById } from "@/features/catalog/api/get-nft-by-id";
 import { Container } from "@/components/layout/container";
 import { SiteHeader } from "@/components/layout/site-header";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { multiply, sum } from "@/lib/money";
 
