@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { chooseNetwork, chooseOption } from "./select";
 
 const ANA = { email: "ana@example.com", password: "Teste@123", name: "Ana Silva" };
 const BRUNO = {
@@ -47,12 +48,12 @@ async function fillWallet(
   await form
     .getByLabel("Apelido da carteira")
     .fill(overrides.nickname ?? "Carteira principal");
-  await form.getByLabel("Rede").selectOption(overrides.network ?? "ethereum");
+  await chooseNetwork(form, overrides.network ?? "ethereum");
   await form.getByLabel("Nome do perfil").fill("Ana Colecionadora");
   await form
     .getByLabel("Endereço da carteira")
     .fill(overrides.address ?? PRIMARY_ADDRESS);
-  await form.getByLabel("Tipo de carteira").selectOption("metamask");
+  await chooseOption(form, "Tipo de carteira", "MetaMask");
   await form.getByLabel("Código de indicação").fill("KURIO-2026");
   await form.getByLabel("E-mail").fill(ANA.email);
   await form.getByLabel("Nome ENS").fill("ana-silva");
@@ -177,7 +178,9 @@ test.describe("Carteiras", () => {
     await login(page, ANA);
     await createPrimary(page);
 
-    await page.getByLabel("Igual à carteira principal").check();
+    await page
+      .getByRole("radio", { name: "Igual à carteira principal" })
+      .check();
     await page
       .getByRole("button", { name: "Adicionar", exact: true })
       .last()
@@ -224,10 +227,10 @@ test.describe("Carteiras", () => {
     const secondary = page.locator("#wallet-secondary-form");
     await secondary.getByLabel("Nome de exibição").fill("Ana Silva");
     await secondary.getByLabel("Apelido da carteira").fill("Carteira reserva");
-    await secondary.getByLabel("Rede").selectOption("polygon");
+    await chooseNetwork(secondary, "polygon");
     await secondary.getByLabel("Nome do perfil").fill("Ana Colecionadora");
     await secondary.getByLabel("Endereço da carteira").fill(SECONDARY_ADDRESS);
-    await secondary.getByLabel("Tipo de carteira").selectOption("metamask");
+    await chooseOption(secondary, "Tipo de carteira", "MetaMask");
     await secondary.getByLabel("Código de indicação").fill("KURIO-2026");
     await secondary.getByLabel("E-mail").fill(ANA.email);
     await secondary.getByLabel("Nome ENS").fill("ana-reserva");
@@ -276,10 +279,10 @@ test.describe("Carteiras", () => {
     const secondary = page.locator("#wallet-secondary-form");
     await secondary.getByLabel("Nome de exibição").fill("Ana Silva");
     await secondary.getByLabel("Apelido da carteira").fill("Reserva");
-    await secondary.getByLabel("Rede").selectOption("polygon");
+    await chooseNetwork(secondary, "polygon");
     await secondary.getByLabel("Nome do perfil").fill("Ana Reserva");
     await secondary.getByLabel("Endereço da carteira").fill(PRIMARY_ADDRESS);
-    await secondary.getByLabel("Tipo de carteira").selectOption("metamask");
+    await chooseOption(secondary, "Tipo de carteira", "MetaMask");
     await secondary.getByLabel("Código de indicação").fill("KURIO-2026");
     await secondary.getByLabel("E-mail").fill(ANA.email);
     await secondary.getByLabel("Nome ENS").fill("ana-reserva");
@@ -370,7 +373,7 @@ test.describe("Carteiras", () => {
     await page.getByRole("button", { name: "Conectar carteira" }).click();
     await expect(page.getByText("Carteira conectada.")).toBeVisible();
 
-    await page.getByLabel("Rede").selectOption("polygon");
+    await chooseNetwork(page, "polygon");
 
     await expect(page.getByText(/Esta carteira é da rede Ethereum/)).toBeVisible();
     await expect(

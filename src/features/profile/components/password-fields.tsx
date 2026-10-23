@@ -1,4 +1,4 @@
-import { Field } from "@/components/ui/field";
+import { FormField } from "@/components/ui/form-field";
 import { fieldControl } from "@/components/ui/field-control";
 import { PasswordInput } from "@/features/auth/components/password-input";
 import type { ChangePasswordInput } from "../types/profile";
@@ -31,7 +31,7 @@ export function PasswordFields({
         manter a senha atual.
       </p>
 
-      <Field
+      <FormField
         id="profile-currentPassword"
         label="Senha atual"
         error={errors.currentPassword}
@@ -43,9 +43,9 @@ export function PasswordFields({
           value={values.currentPassword}
           onChange={(event) => set("currentPassword", event.target.value)}
         />
-      </Field>
+      </FormField>
 
-      <Field
+      <FormField
         id="profile-newPassword"
         label="Nova senha"
         error={errors.newPassword}
@@ -57,9 +57,9 @@ export function PasswordFields({
           value={values.newPassword}
           onChange={(event) => set("newPassword", event.target.value)}
         />
-      </Field>
+      </FormField>
 
-      <Field
+      <FormField
         id="profile-confirmPassword"
         label="Confirmar nova senha"
         error={errors.confirmPassword}
@@ -71,7 +71,7 @@ export function PasswordFields({
           value={values.confirmPassword}
           onChange={(event) => set("confirmPassword", event.target.value)}
         />
-      </Field>
+      </FormField>
     </div>
   );
 }

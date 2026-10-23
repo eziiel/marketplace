@@ -3,8 +3,7 @@ import { TriangleAlert } from "lucide-react";
 
 import { useLogin } from "../hooks/use-login";
 import { Input } from "@/components/ui/input";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { PasswordInput } from "./password-input";
 import { SocialAuth } from "./social-auth";
 
@@ -77,16 +76,14 @@ export function LoginForm({ onSuccess }: { onSuccess?: () => void }) {
           </p>
         )}
 
-        <button
+        <Button
           type="submit"
+          size="lg"
           disabled={loginMutation.isPending}
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "mt-3 h-11 w-full rounded-[4px] text-[15px] font-bold",
-          )}
+          className="mt-3 h-11 w-full rounded-[4px] text-[15px] font-bold"
         >
           {loginMutation.isPending ? "Entrando..." : "Entrar"}
-        </button>
+        </Button>
       </form>
 
       <SocialAuth />

@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useSearch } from "@tanstack/react-router";
 import { LogIn, Search, ShoppingCart, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { useCartCount } from "@/features/cart/hooks/use-cart-count";
 
@@ -144,23 +146,21 @@ export function SiteHeader({
           </nav>
 
           <div className="flex items-center justify-self-end gap-1.5 sm:gap-3">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={toggleSearch}
               aria-label={searchOpen ? "Fechar busca" : "Abrir busca"}
               aria-expanded={searchOpen}
               aria-controls="site-search"
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "size-9 text-foreground hover:text-highlight",
-              )}
+              className="size-9 text-foreground hover:text-highlight"
             >
               {searchOpen ? (
                 <X className="size-5" aria-hidden />
               ) : (
                 <Search className="size-5" aria-hidden />
               )}
-            </button>
+            </Button>
 
             <Link
               to="/cart"
@@ -192,16 +192,14 @@ export function SiteHeader({
                     Olá, <span className="text-foreground">{userName}</span>
                   </Link>
                 )}
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="lg"
                   onClick={onLogout}
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    "h-9 rounded-[4px] px-3",
-                  )}
+                  className="h-9 rounded-[4px] px-3"
                 >
                   Sair
-                </button>
+                </Button>
               </div>
             ) : (
               <Link
@@ -228,7 +226,7 @@ export function SiteHeader({
             <label htmlFor="site-search-input" className="sr-only">
               Buscar NFTs
             </label>
-            <input
+            <Input
               id="site-search-input"
               type="search"
               autoFocus={autoFocus}
@@ -237,17 +235,15 @@ export function SiteHeader({
                 setTermState({ key: currentSearch, value: event.target.value })
               }
               placeholder="Buscar NFTs..."
-              className="h-9 w-full rounded-[4px] border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-highlight focus-visible:outline-none md:w-72"
+              className="h-9 bg-card px-3 focus-visible:border-highlight md:w-72"
             />
-            <button
+            <Button
               type="submit"
-              className={cn(
-                buttonVariants({ size: "lg" }),
-                "h-9 rounded-[4px] px-3 text-sm font-semibold",
-              )}
+              size="lg"
+              className="h-9 rounded-[4px] px-3 text-sm font-semibold"
             >
               Buscar
-            </button>
+            </Button>
           </form>
         )}
       </div>

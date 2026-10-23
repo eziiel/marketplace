@@ -1,14 +1,16 @@
-import { Fragment, useEffect, useRef, type MouseEvent } from "react";
-import { X } from "lucide-react";
+import { Fragment, useEffect, useRef } from "react";
 
-import { cn } from "@/lib/utils";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { LoginForm } from "./login-form";
 import { SignupForm } from "./signup-form";
 
 export type AuthMode = "login" | "signup";
-
-const FOCUSABLE =
-  'a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 const TABS: { value: AuthMode; label: string }[] = [
   { value: "login", label: "Entrar" },
@@ -22,133 +24,68 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ mode, onClose, onModeChange }: AuthModalProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
-
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    const body = document.body;
-    const previousOverflow = body.style.overflow;
-    body.style.overflow = "hidden";
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-
-      if (event.key !== "Tab") return;
-
-      const node = dialogRef.current;
-      if (!node) return;
-
-      const focusables = Array.from(
-        node.querySelectorAll<HTMLElement>(FOCUSABLE),
-      ).filter((element) => element.offsetParent !== null);
-
-      if (focusables.length === 0) return;
-
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      body.style.overflow = previousOverflow;
-      previouslyFocused?.focus?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    const node = dialogRef.current;
-    const field =
-      node?.querySelector<HTMLElement>("input:not([disabled])") ??
-      node?.querySelector<HTMLElement>(FOCUSABLE);
-    field?.focus();
-  }, [mode]);
-
-  function handleOverlayClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target === event.currentTarget) {
-      onClose();
-    }
+  function firstField() {
+    return panelRef.current?.querySelector<HTMLElement>(
+      "input:not([disabled])",
+    );
   }
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-10 backdrop-blur-sm sm:items-center"
-      onClick={handleOverlayClick}
-    >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={mode === "login" ? "Entrar na Kurio" : "Criar conta na Kurio"}
-        className="relative w-full max-w-[500px] overflow-hidden bg-card shadow-2xl shadow-black/50"
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fechar"
-          className="absolute top-2 right-2 grid size-6 place-items-center text-primary transition-colors hover:text-highlight focus-visible:outline-2 focus-visible:outline-primary"
-        >
-          <X className="size-4" aria-hidden />
-        </button>
+  useEffect(() => {
+    firstField()?.focus();
+  }, [mode]);
 
-        <div className="px-6 pt-11 pb-16 sm:px-20">
-          <div
-            role="tablist"
-            aria-label="Acesso à conta"
-            className="flex items-center justify-center gap-1.5 text-xl font-bold"
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
+        aria-label={mode === "login" ? "Entrar na Kurio" : "Criar conta na Kurio"}
+        initialFocus={() => firstField() ?? true}
+        className="max-h-[calc(100svh-5rem)] gap-0 overflow-y-auto p-0 sm:max-w-[500px]"
+      >
+        <div ref={panelRef} className="px-6 pt-11 pb-16 sm:px-20">
+          <Tabs
+            value={mode}
+            onValueChange={(value) => onModeChange(value as AuthMode)}
+            className="gap-0"
           >
-            {TABS.map((tab, index) => {
-              const active = tab.value === mode;
-              return (
+            <TabsList
+              variant="line"
+              aria-label="Acesso à conta"
+              className="h-auto w-full justify-center gap-1.5 rounded-none bg-transparent p-0 text-xl font-bold"
+            >
+              {TABS.map((tab, index) => (
                 <Fragment key={tab.value}>
                   {index > 0 && (
                     <span aria-hidden className="h-5 w-0.5 bg-primary/60" />
                   )}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    tabIndex={active ? 0 : -1}
-                    onClick={() => onModeChange(tab.value)}
-                    className={cn(
-                      "transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary",
-                      active
-                        ? "text-highlight"
-                        : "text-foreground hover:text-highlight",
-                    )}
+                  <TabsTrigger
+                    value={tab.value}
+                    className="h-auto flex-none rounded-none p-0 text-xl font-bold text-foreground after:hidden hover:text-highlight focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary data-active:text-highlight"
                   >
                     {tab.label}
-                  </button>
+                  </TabsTrigger>
                 </Fragment>
-              );
-            })}
-          </div>
+              ))}
+            </TabsList>
 
-          <div className="mt-9">
-            {mode === "login" ? <LoginForm onSuccess={onClose} /> : <SignupForm />}
-          </div>
+            <TabsContent value="login" className="mt-9">
+              <LoginForm onSuccess={onClose} />
+            </TabsContent>
+
+            <TabsContent value="signup" className="mt-9">
+              <SignupForm />
+            </TabsContent>
+          </Tabs>
         </div>
 
         <div aria-hidden className="h-2.5 bg-primary" />
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

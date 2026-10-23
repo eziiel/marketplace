@@ -1,5 +1,9 @@
 import { useId, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field as FieldRoot, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { SelectField } from "@/components/ui/select-field";
 import { cn } from "@/lib/utils";
 import type { CheckoutNetwork } from "../types/quote";
 import { WALLET_PROVIDERS } from "@/features/wallets/types/wallet";
@@ -9,7 +13,7 @@ import type {
 } from "../lib/collector-form";
 
 const controlClass =
-  "h-10 w-full rounded-[4px] border border-foreground/70 bg-transparent px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-highlight focus-visible:outline-none aria-invalid:border-destructive [&>option]:bg-popover [&>option]:text-foreground [&>option:disabled]:text-muted-foreground";
+  "border-foreground/70 px-3 placeholder:text-muted-foreground focus-visible:border-highlight";
 
 function Field({
   id,
@@ -25,9 +29,12 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div>
+    <FieldRoot data-invalid={error ? true : undefined} className="gap-0">
       {label ? (
-        <label htmlFor={id} className="block text-sm text-muted-foreground">
+        <FieldLabel
+          htmlFor={id}
+          className="block text-sm font-normal text-muted-foreground"
+        >
           {label}
           {required && (
             <span className="text-highlight" aria-hidden>
@@ -35,27 +42,17 @@ function Field({
               *
             </span>
           )}
-        </label>
+        </FieldLabel>
       ) : (
         <span aria-hidden className="block h-5" />
       )}
       <div className="mt-1.5">{children}</div>
-      <p id={`${id}-error`} className="mt-1 min-h-4 text-xs text-destructive">
-        {error}
-      </p>
-    </div>
-  );
-}
-
-function SelectWrap({ children }: { children: ReactNode }) {
-  return (
-    <div className="relative">
-      {children}
-      <ChevronDown
-        aria-hidden
-        className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
-      />
-    </div>
+      <div className="mt-1 min-h-4">
+        <FieldError id={`${id}-error`} className="text-xs">
+          {error}
+        </FieldError>
+      </div>
+    </FieldRoot>
   );
 }
 
@@ -118,7 +115,7 @@ export function CollectorForm({
         required
         error={errors.displayName}
       >
-        <input
+        <Input
           {...inputProps("displayName")}
           name="displayName"
           autoComplete="name"
@@ -134,7 +131,7 @@ export function CollectorForm({
         required
         error={errors.username}
       >
-        <input
+        <Input
           {...inputProps("username")}
           name="username"
           autoComplete="username"
@@ -145,24 +142,19 @@ export function CollectorForm({
       </Field>
 
       <Field id={`${prefix}-networkId`} label="Rede" required error={errors.networkId}>
-        <SelectWrap>
-          <select
-            {...inputProps("networkId")}
-            name="networkId"
-            value={networkId}
-            onChange={(event) => onNetworkChange(event.target.value)}
-            className={cn(controlClass, "appearance-none pr-10")}
-          >
-            <option value="" disabled>
-              Selecione uma rede
-            </option>
-            {networks.map((network) => (
-              <option key={network.id} value={network.id}>
-                {network.label}
-              </option>
-            ))}
-          </select>
-        </SelectWrap>
+        <SelectField
+          id={`${prefix}-networkId`}
+          name="networkId"
+          value={networkId}
+          error={errors.networkId}
+          placeholder="Selecione uma rede"
+          options={networks.map((network) => ({
+            value: network.id,
+            label: network.label,
+          }))}
+          onValueChange={onNetworkChange}
+          className={controlClass}
+        />
       </Field>
 
       <Field
@@ -171,7 +163,7 @@ export function CollectorForm({
         required
         error={errors.profileName}
       >
-        <input
+        <Input
           {...inputProps("profileName")}
           name="profileName"
           autoComplete="nickname"
@@ -187,7 +179,7 @@ export function CollectorForm({
         required
         error={errors.walletAddress}
       >
-        <input
+        <Input
           {...inputProps("walletAddress")}
           name="walletAddress"
           autoComplete="off"
@@ -200,7 +192,7 @@ export function CollectorForm({
       </Field>
 
       <Field id={`${prefix}-secondaryWallet`} error={errors.secondaryWallet}>
-        <input
+        <Input
           id={`${prefix}-secondaryWallet`}
           name="secondaryWallet"
           aria-label="ENS ou carteira secundária (opcional)"
@@ -219,24 +211,19 @@ export function CollectorForm({
         required
         error={errors.walletType}
       >
-        <SelectWrap>
-          <select
-            {...inputProps("walletType")}
-            name="walletType"
-            value={walletType ?? ""}
-            onChange={(event) => onWalletTypeChange(event.target.value)}
-            className={cn(controlClass, "appearance-none pr-10")}
-          >
-            <option value="" disabled>
-              Selecione uma carteira
-            </option>
-            {WALLET_PROVIDERS.map((wallet) => (
-              <option key={wallet.id} value={wallet.id}>
-                {wallet.label}
-              </option>
-            ))}
-          </select>
-        </SelectWrap>
+        <SelectField
+          id={`${prefix}-walletType`}
+          name="walletType"
+          value={walletType ?? ""}
+          error={errors.walletType}
+          placeholder="Selecione uma carteira"
+          options={WALLET_PROVIDERS.map((wallet) => ({
+            value: wallet.id,
+            label: wallet.label,
+          }))}
+          onValueChange={onWalletTypeChange}
+          className={controlClass}
+        />
       </Field>
 
       <Field
@@ -244,7 +231,7 @@ export function CollectorForm({
         label="Código de indicação"
         error={errors.referralCode}
       >
-        <input
+        <Input
           id={`${prefix}-referralCode`}
           name="referralCode"
           autoComplete="off"
@@ -255,7 +242,7 @@ export function CollectorForm({
       </Field>
 
       <Field id={`${prefix}-email`} label="E-mail" required error={errors.email}>
-        <input
+        <Input
           {...inputProps("email")}
           type="email"
           name="email"
@@ -268,7 +255,7 @@ export function CollectorForm({
 
       <Field id={`${prefix}-ensName`} label="Nome ENS" error={errors.ensName}>
         <div className="flex">
-          <input
+          <Input
             id={`${prefix}-ensName`}
             name="ensName"
             autoComplete="off"
@@ -287,16 +274,20 @@ export function CollectorForm({
         </div>
       </Field>
 
-      <label className="mt-1 flex items-center gap-2 text-sm text-muted-foreground md:col-span-2">
-        <input
-          type="checkbox"
+      <FieldLabel
+        htmlFor={`${prefix}-useOtherWallet`}
+        className="mt-1 flex items-center gap-2 text-sm font-normal text-muted-foreground md:col-span-2"
+      >
+        <Checkbox
+          id={`${prefix}-useOtherWallet`}
           name="useOtherWallet"
+          aria-label="Usar outra carteira?"
           checked={values.useOtherWallet}
-          onChange={(event) => set("useOtherWallet", event.target.checked)}
-          className="size-4 appearance-none rounded-full border border-primary bg-transparent transition-colors checked:bg-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
+          onCheckedChange={(checked) => set("useOtherWallet", checked)}
+          className="rounded-full border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
         />
         Usar outra carteira?
-      </label>
+      </FieldLabel>
 
       <div className="mt-2 md:col-span-2">
         <label
@@ -305,7 +296,7 @@ export function CollectorForm({
         >
           Observação do colecionador (opcional)
         </label>
-        <textarea
+        <Textarea
           id={`${prefix}-note`}
           name="note"
           rows={6}
@@ -313,7 +304,7 @@ export function CollectorForm({
           onChange={(event) => set("note", event.target.value)}
           className={cn(
             controlClass,
-            "mt-1.5 h-auto max-w-[350px] resize-y py-2 leading-6",
+            "mt-1.5 max-w-[350px] resize-y rounded-[4px] py-2 text-sm leading-6",
           )}
         />
       </div>

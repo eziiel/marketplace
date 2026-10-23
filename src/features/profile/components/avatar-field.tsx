@@ -1,8 +1,7 @@
 import { useId, useRef, useState, type ChangeEvent } from "react";
 import { Smile } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { AVATAR_TYPES, readAvatarFile } from "../lib/avatar";
 
 export function AvatarField({
@@ -64,16 +63,13 @@ export function AvatarField({
           className="sr-only"
         />
 
-        <button
-          type="button"
+        <Button
+          size="lg"
           onClick={() => inputRef.current?.click()}
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "h-10 rounded-[4px] px-6 text-sm font-bold",
-          )}
+          className="h-10 rounded-[4px] px-6 text-sm font-bold"
         >
           Alterar
-        </button>
+        </Button>
 
         <button
           type="button"

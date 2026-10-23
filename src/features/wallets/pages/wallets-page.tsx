@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowLeft, Star, TriangleAlert } from "lucide-react";
 
+import { FieldLabel } from "@/components/ui/field";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useNetworks } from "@/features/checkout/hooks/use-networks";
 import { ProfileShell } from "@/features/profile/components/profile-shell";
 import { useProfile } from "@/features/profile/hooks/use-profile";
@@ -229,17 +231,26 @@ export function WalletsPage() {
 
               {!secondary && !secondaryOpen && (
                 <div className="flex flex-wrap items-center gap-4">
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <input
-                      type="radio"
-                      name="secondaryPreset"
-                      checked={sameAsPrimary}
-                      disabled={!primary}
-                      onChange={() => setSameAsPrimary(true)}
-                      className="size-4 appearance-none rounded-full border border-primary bg-transparent transition-colors checked:bg-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight disabled:opacity-50"
-                    />
-                    Igual à carteira principal
-                  </label>
+                  <RadioGroup
+                    name="secondaryPreset"
+                    value={sameAsPrimary ? "same" : ""}
+                    disabled={!primary}
+                    onValueChange={() => setSameAsPrimary(true)}
+                    className="w-auto"
+                  >
+                    <FieldLabel
+                      htmlFor="secondary-same-as-primary"
+                      className="flex items-center gap-2 text-sm font-normal text-muted-foreground"
+                    >
+                      <RadioGroupItem
+                        id="secondary-same-as-primary"
+                        value="same"
+                        aria-label="Igual à carteira principal"
+                        className="border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
+                      />
+                      Igual à carteira principal
+                    </FieldLabel>
+                  </RadioGroup>
 
                   <button
                     type="button"

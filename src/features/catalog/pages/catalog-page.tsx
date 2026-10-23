@@ -14,6 +14,7 @@ import { Container } from "@/components/layout/container";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
@@ -79,13 +80,9 @@ function ErrorState({
         </p>
         <p className="text-sm text-muted-foreground">{message}</p>
       </div>
-      <button
-        type="button"
-        onClick={onRetry}
-        className={cn(buttonVariants({ size: "lg" }), "rounded-[4px] px-5")}
-      >
+      <Button size="lg" onClick={onRetry} className="rounded-[4px] px-5">
         Tentar novamente
-      </button>
+      </Button>
     </div>
   );
 }
@@ -111,16 +108,14 @@ function EmptyState({
         </p>
       </div>
       {hasFilter && (
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="lg"
           onClick={onClear}
-          className={cn(
-            buttonVariants({ variant: "outline", size: "lg" }),
-            "rounded-[4px]",
-          )}
+          className="rounded-[4px]"
         >
           Limpar filtros
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -343,17 +338,15 @@ export function CatalogPage() {
               <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
                 <CatalogTabs />
                 <div className="flex items-center gap-4">
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    size="lg"
                     onClick={() => setFiltersOpen(true)}
-                    className={cn(
-                      buttonVariants({ variant: "outline", size: "lg" }),
-                      "h-9 gap-1.5 rounded-[4px] px-3 lg:hidden",
-                    )}
+                    className="h-9 gap-1.5 rounded-[4px] px-3 lg:hidden"
                   >
                     <SlidersHorizontal className="size-4" aria-hidden />
                     Filtros
-                  </button>
+                  </Button>
                   <CatalogSort />
                 </div>
               </div>

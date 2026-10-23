@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Loader2, Plug, PlugZap, TriangleAlert } from "lucide-react";
 
+import { FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import type { CheckoutNetwork } from "@/features/checkout/types/quote";
 import type { CollectorWallet } from "../types/wallet";
@@ -62,35 +64,43 @@ export function WalletSelector({
   }
 
   return (
-    <fieldset className={cn("min-w-0 border-0 p-0", className)}>
-      <legend className="text-sm text-muted-foreground">
+    <FieldSet className={cn("min-w-0 gap-0 border-0 p-0", className)}>
+      <FieldLegend variant="label" className="mb-0 font-normal text-muted-foreground">
         Carteira de recebimento
-      </legend>
+      </FieldLegend>
 
-      <div className="mt-3 flex flex-col gap-2">
+      <RadioGroup
+        name="collectorWallet"
+        value={selectedId ?? ""}
+        onValueChange={(value) => {
+          const wallet = wallets.find((item) => item.id === value);
+          if (wallet) onSelect(wallet);
+        }}
+        className="mt-3 flex flex-col gap-2"
+      >
         {wallets.map((wallet) => {
           const active = wallet.id === selectedId;
           const mismatch = wallet.networkId !== networkId;
+          const itemId = `collector-wallet-${wallet.id}`;
 
           return (
-            <label
+            <FieldLabel
               key={wallet.id}
+              htmlFor={itemId}
               className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-[4px] border px-3 py-2 text-sm transition-colors",
+                "flex w-full cursor-pointer items-center gap-3 rounded-[4px] border px-3 py-2 text-sm font-normal transition-colors",
                 active
                   ? "border-highlight text-foreground"
                   : "border-border text-muted-foreground hover:border-highlight/70",
               )}
             >
-              <input
-                type="radio"
-                name="collectorWallet"
+              <RadioGroupItem
+                id={itemId}
                 value={wallet.id}
-                checked={active}
-                onChange={() => onSelect(wallet)}
-                className="size-4 shrink-0 appearance-none rounded-full border border-primary bg-transparent transition-colors checked:bg-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
+                aria-labelledby={`${itemId}-text`}
+                className="shrink-0 border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
               />
-              <span className="min-w-0 flex-1">
+              <span id={`${itemId}-text`} className="min-w-0 flex-1">
                 <span className="block truncate">
                   {walletKindLabel(wallet.kind)}
                   {wallet.walletNickname ? ` · ${wallet.walletNickname}` : ""}
@@ -105,10 +115,10 @@ export function WalletSelector({
                   Outra rede
                 </span>
               )}
-            </label>
+            </FieldLabel>
           );
         })}
-      </div>
+      </RadioGroup>
 
       {incompatible && (
         <p
@@ -164,6 +174,6 @@ export function WalletSelector({
           </p>
         </div>
       )}
-    </fieldset>
+    </FieldSet>
   );
 }

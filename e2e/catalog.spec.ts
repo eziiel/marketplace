@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { chooseOption } from "./select";
 
 function results(
   page: Parameters<typeof test>[1] extends never
@@ -25,7 +26,7 @@ test.describe("Catálogo", () => {
     ).toHaveAttribute("aria-current", "page");
     await expect(
       page.getByRole("combobox", { name: /Ordenar por/ }),
-    ).toHaveValue("recent");
+    ).toHaveText("Listados recentemente");
 
     const pagination = page.getByRole("navigation", {
       name: "Paginação do catálogo",
@@ -85,16 +86,14 @@ test.describe("Catálogo", () => {
   test("ordenação por preço reordena a lista", async ({ page }) => {
     await page.goto("/");
 
-    const sort = page.getByRole("combobox", { name: /Ordenar por/ });
-
-    await sort.selectOption("price_desc");
+    await chooseOption(page, "Ordenar por", "Maior preço");
 
     await expect(page).toHaveURL(/sort=price_desc/);
     await expect(results(page).getByRole("link").first()).toContainText(
       "Onyx Curator #001",
     );
 
-    await sort.selectOption("price_asc");
+    await chooseOption(page, "Ordenar por", "Menor preço");
 
     await expect(page).toHaveURL(/sort=price_asc/);
     await expect(results(page).getByRole("link").first()).toContainText(

@@ -2,8 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { CheckCircle2, TriangleAlert } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 import { ProfileShell } from "../components/profile-shell";
 import { ProfileFields } from "../components/profile-fields";
@@ -264,16 +263,14 @@ export function ProfilePage() {
             )}
           </div>
 
-          <button
+          <Button
             type="submit"
+            size="lg"
             disabled={saving}
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "mt-4 h-10 rounded-[4px] px-10 text-sm font-bold",
-            )}
+            className="mt-4 h-10 rounded-[4px] px-10 text-sm font-bold"
           >
             {saving ? "Salvando..." : "Salvar"}
-          </button>
+          </Button>
         </form>
       )}
     </ProfileShell>

@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { Field } from "@/components/ui/field";
+import { FormField } from "@/components/ui/form-field";
 import { fieldControl } from "@/components/ui/field-control";
 import type { UpdateProfileInput } from "../types/profile";
 import type { ProfileFormErrors } from "../lib/profile-form";
@@ -24,7 +24,7 @@ export function ProfileFields({
 
   return (
     <div className="grid gap-x-7 gap-y-2 md:grid-cols-2">
-      <Field
+      <FormField
         id="profile-displayName"
         label="Nome de exibição"
         required
@@ -37,9 +37,9 @@ export function ProfileFields({
           value={values.displayName}
           onChange={(event) => set("displayName", event.target.value)}
         />
-      </Field>
+      </FormField>
 
-      <Field
+      <FormField
         id="profile-username"
         label="Nome de usuário"
         required
@@ -52,9 +52,9 @@ export function ProfileFields({
           value={values.username}
           onChange={(event) => set("username", event.target.value)}
         />
-      </Field>
+      </FormField>
 
-      <Field id="profile-email" label="E-mail" required error={errors.email}>
+      <FormField id="profile-email" label="E-mail" required error={errors.email}>
         <Input
           {...fieldControl("profile-email", errors.email)}
           type="email"
@@ -63,9 +63,9 @@ export function ProfileFields({
           value={values.email}
           onChange={(event) => set("email", event.target.value)}
         />
-      </Field>
+      </FormField>
 
-      <Field
+      <FormField
         id="profile-ensName"
         label="Nome ENS"
         required
@@ -80,9 +80,9 @@ export function ProfileFields({
           onValueChange={(value) => set("ensName", value)}
           onDomainChange={(domain) => set("ensDomain", domain)}
         />
-      </Field>
+      </FormField>
 
-      <Field
+      <FormField
         id="profile-walletNickname"
         label="Apelido da carteira"
         required
@@ -95,7 +95,7 @@ export function ProfileFields({
           value={values.walletNickname}
           onChange={(event) => set("walletNickname", event.target.value)}
         />
-      </Field>
+      </FormField>
 
       <AvatarField
         value={values.avatar}

@@ -38,6 +38,8 @@ import {
   type CollectorFormValues,
 } from "../lib/collector-form";
 import type { Quote } from "../types/quote";
+import { FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { WALLET_BADGES, WALLET_PROVIDERS } from "@/features/wallets/types/wallet";
 
 const FORM_ID = "checkout-form";
@@ -468,38 +470,42 @@ export function CheckoutPage() {
                 </div>
               </dl>
 
-              <fieldset className="mt-4 min-w-0 border-0 p-0">
-                <legend className="w-full text-center text-base text-foreground">
+              <FieldSet className="mt-4 min-w-0 gap-0 border-0 p-0">
+                <FieldLegend className="mb-0 w-full text-center text-base font-normal text-foreground">
                   Carteira e rede
-                </legend>
-                <div className="mt-4 space-y-4">
+                </FieldLegend>
+                <RadioGroup
+                  name="wallet"
+                  value={walletType ?? ""}
+                  onValueChange={(value) => setWalletType(value)}
+                  className="mt-4 space-y-4"
+                >
                   {WALLET_PROVIDERS.map((wallet) => {
                     const selected = wallet.id === walletType;
+                    const itemId = `wallet-provider-${wallet.id}`;
 
                     return (
-                      <label
+                      <FieldLabel
                         key={wallet.id}
+                        htmlFor={itemId}
                         className={cn(
-                          "flex h-11 cursor-pointer items-center gap-4 rounded-[4px] border px-3 transition-colors",
+                          "flex h-11 w-full cursor-pointer items-center gap-4 rounded-[4px] border px-3 font-normal transition-colors",
                           selected
                             ? "border-highlight"
                             : "border-foreground/70 hover:border-highlight/70",
                         )}
                       >
-                        <input
-                          type="radio"
-                          name="wallet"
+                        <RadioGroupItem
+                          id={itemId}
                           value={wallet.id}
-                          checked={selected}
-                          onChange={() => setWalletType(wallet.id)}
+                          aria-label={wallet.label}
                           aria-describedby={
                             errors.walletType ? "wallet-error" : undefined
                           }
-                          className="size-4 shrink-0 appearance-none rounded-full border border-primary bg-transparent transition-colors checked:border-[5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
+                          className="shrink-0 border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
                         />
                         {wallet.badge ? (
                           <span className="rounded-[3px] bg-black/60 px-3 py-1.5 text-[10px] font-bold tracking-wider text-primary uppercase">
-                            <span className="sr-only">{wallet.label}: </span>
                             {WALLET_BADGES.join(" · ")}
                           </span>
                         ) : (
@@ -512,14 +518,14 @@ export function CheckoutPage() {
                             {wallet.label}
                           </span>
                         )}
-                      </label>
+                      </FieldLabel>
                     );
                   })}
-                </div>
+                </RadioGroup>
                 <p id="wallet-error" className="mt-2 min-h-4 text-xs text-destructive">
                   {errors.walletType}
                 </p>
-              </fieldset>
+              </FieldSet>
 
               <div className="mt-4 rounded-[4px] border border-border px-3 py-3 text-xs">
                 <p className="font-bold text-foreground">Resumo do pagamento</p>

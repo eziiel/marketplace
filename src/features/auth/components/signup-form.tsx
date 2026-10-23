@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 
 import { useSignup } from "../hooks/use-signup";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { PasswordInput } from "./password-input";
@@ -131,16 +132,14 @@ export function SignupForm() {
           </p>
         )}
 
-        <button
+        <Button
           type="submit"
+          size="lg"
           disabled={signup.isPending}
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "mt-3 h-11 w-full rounded-[4px] text-[15px] font-bold",
-          )}
+          className="mt-3 h-11 w-full rounded-[4px] text-[15px] font-bold"
         >
           {signup.isPending ? "Criando conta..." : "Criar conta"}
-        </button>
+        </Button>
       </form>
 
       <SocialAuth />

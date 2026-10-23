@@ -1,6 +1,11 @@
-import { useId, useState, type KeyboardEvent } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { getNftReviews } from "../api/get-nft-reviews";
 import { NFT_NETWORK_LABELS, type NFT } from "../types/nft";
 import { NftRating } from "./nft-rating";
@@ -91,7 +96,6 @@ export function NftDetailsTabs({
   nft: NFT;
   reviewCount?: number;
 }) {
-  const baseId = useId();
   const [tab, setTab] = useState<TabValue>("details");
   const network = NFT_NETWORK_LABELS[nft.network];
 
@@ -106,66 +110,29 @@ export function NftDetailsTabs({
     },
   ];
 
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
-      return;
-    }
-
-    event.preventDefault();
-    const index = tabs.findIndex((item) => item.value === tab);
-    const offset = event.key === "ArrowRight" ? 1 : -1;
-    const next = tabs[(index + offset + tabs.length) % tabs.length];
-    setTab(next.value);
-    document.getElementById(`${baseId}-tab-${next.value}`)?.focus();
-  }
-
   return (
-    <div>
-      <div
-        role="tablist"
+    <Tabs
+      value={tab}
+      onValueChange={(value) => setTab(value as TabValue)}
+      className="gap-0"
+    >
+      <TabsList
+        variant="line"
         aria-label="Informações do NFT"
-        onKeyDown={handleKeyDown}
-        className="flex flex-wrap gap-x-8 gap-y-2 border-b border-border text-sm"
+        className="h-auto w-full flex-wrap justify-start gap-x-8 gap-y-2 rounded-none border-b border-border p-0 text-sm"
       >
-        {tabs.map((item) => {
-          const active = item.value === tab;
+        {tabs.map((item) => (
+          <TabsTrigger
+            key={item.value}
+            value={item.value}
+            className="h-auto flex-none rounded-none px-0 pb-3 font-bold text-muted-foreground after:bottom-0 after:bg-highlight hover:text-foreground focus-visible:outline-2 focus-visible:outline-highlight data-active:text-highlight"
+          >
+            {item.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
 
-          return (
-            <button
-              key={item.value}
-              id={`${baseId}-tab-${item.value}`}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              aria-controls={`${baseId}-panel-${item.value}`}
-              tabIndex={active ? 0 : -1}
-              onClick={() => setTab(item.value)}
-              className={cn(
-                "relative pb-3 font-bold transition-colors focus-visible:outline-2 focus-visible:outline-highlight",
-                active
-                  ? "text-highlight"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {item.label}
-              {active && (
-                <span
-                  aria-hidden
-                  className="absolute bottom-0 left-0 h-0.5 w-full bg-highlight"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <div
-        id={`${baseId}-panel-details`}
-        role="tabpanel"
-        aria-labelledby={`${baseId}-tab-details`}
-        hidden={tab !== "details"}
-        className="pt-6"
-      >
+      <TabsContent value="details" className="pt-6">
         <p className="text-sm leading-6 text-muted-foreground">
           {nft.name} é uma obra digital {nft.edition} finalizada à mão da
           coleção Kurio Editions. Cada atributo fica armazenado nos metadados do
@@ -190,17 +157,11 @@ export function NftDetailsTabs({
             automaticamente pelos mercados compatíveis.
           </Fact>
         </dl>
-      </div>
+      </TabsContent>
 
-      <div
-        id={`${baseId}-panel-reviews`}
-        role="tabpanel"
-        aria-labelledby={`${baseId}-tab-reviews`}
-        hidden={tab !== "reviews"}
-        className="pt-6"
-      >
-        {tab === "reviews" && <ReviewsPanel nftId={nft.id} />}
-      </div>
-    </div>
+      <TabsContent value="reviews" className="pt-6">
+        <ReviewsPanel nftId={nft.id} />
+      </TabsContent>
+    </Tabs>
   );
 }

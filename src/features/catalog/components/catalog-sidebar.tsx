@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button-variants";
+import { Button } from "@/components/ui/button";
 import type { NftFacetOption, NftFacets, NftNetwork } from "../types/nft";
 import { formatEth } from "../lib/price";
 import { PriceRange, type PriceRangeValue } from "./price-range";
@@ -126,17 +126,14 @@ export function CatalogSidebar({
         <p className="mt-2 px-3 text-sm text-foreground">
           Preço: {formatEth(priceValue.min)} - {formatEth(priceValue.max)} ETH
         </p>
-        <button
-          type="button"
+        <Button
+          size="lg"
           onClick={onApplyPrice}
           disabled={!hasRange}
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "mt-3 ml-3 h-9 rounded-[4px] px-4 text-sm font-semibold",
-          )}
+          className="mt-3 ml-3 h-9 rounded-[4px] px-4 text-sm font-semibold"
         >
           Aplicar
-        </button>
+        </Button>
       </section>
 
       <section aria-labelledby="facet-network" className="mt-8">

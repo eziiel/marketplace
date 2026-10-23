@@ -1,7 +1,12 @@
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { fieldControl } from "@/components/ui/field-control";
 import { ENS_DOMAINS } from "@/lib/ens";
+
+const DOMAIN_OPTIONS = ENS_DOMAINS.map((domain) => ({
+  value: domain,
+  label: domain,
+}));
 
 export function EnsField({
   id,
@@ -22,19 +27,15 @@ export function EnsField({
 }) {
   return (
     <div className="flex gap-3">
-      <Select
+      <SelectField
+        id={`${id}-domain`}
         name={`${name}Domain`}
-        aria-label="Domínio ENS"
+        label="Domínio ENS"
         value={domain}
-        onChange={(event) => onDomainChange(event.target.value)}
-        className="w-[94px] shrink-0 px-3 pr-8"
-      >
-        {ENS_DOMAINS.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </Select>
+        options={DOMAIN_OPTIONS}
+        onValueChange={onDomainChange}
+        className="w-[94px] shrink-0 px-3"
+      />
 
       <Input
         {...fieldControl(id, error)}

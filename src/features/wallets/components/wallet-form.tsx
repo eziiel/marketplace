@@ -2,11 +2,10 @@ import type { FormEvent, ReactNode } from "react";
 import { CheckCircle2, TriangleAlert } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Field } from "@/components/ui/field";
+import { SelectField } from "@/components/ui/select-field";
+import { FormField } from "@/components/ui/form-field";
 import { fieldControl } from "@/components/ui/field-control";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { WALLET_PROVIDERS } from "../types/wallet";
 import type { CheckoutNetwork } from "@/features/checkout/types/quote";
 
@@ -72,7 +71,7 @@ export function WalletForm({
       )}
 
       <div className="grid gap-x-7 gap-y-2 md:grid-cols-2">
-        <Field
+        <FormField
           id={fieldId("displayName")}
           label="Nome de exibição"
           required
@@ -85,9 +84,9 @@ export function WalletForm({
             value={values.displayName}
             onChange={(event) => set("displayName", event.target.value)}
           />
-        </Field>
+        </FormField>
 
-        <Field
+        <FormField
           id={fieldId("walletNickname")}
           label="Apelido da carteira"
           required
@@ -100,30 +99,29 @@ export function WalletForm({
             value={values.walletNickname}
             onChange={(event) => set("walletNickname", event.target.value)}
           />
-        </Field>
+        </FormField>
 
-        <Field
+        <FormField
           id={fieldId("networkId")}
           label="Rede"
           required
           error={errors.networkId}
         >
-          <Select
-            {...fieldControl(fieldId("networkId"), errors.networkId)}
+          <SelectField
+            id={fieldId("networkId")}
             name="networkId"
             value={values.networkId}
-            onChange={(event) => set("networkId", event.target.value)}
-          >
-            <option value="">Selecione uma rede</option>
-            {networks.map((network) => (
-              <option key={network.id} value={network.id}>
-                {network.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+            error={errors.networkId}
+            placeholder="Selecione uma rede"
+            options={networks.map((network) => ({
+              value: network.id,
+              label: network.label,
+            }))}
+            onValueChange={(value) => set("networkId", value)}
+          />
+        </FormField>
 
-        <Field
+        <FormField
           id={fieldId("profileName")}
           label="Nome do perfil"
           required
@@ -136,9 +134,9 @@ export function WalletForm({
             value={values.profileName}
             onChange={(event) => set("profileName", event.target.value)}
           />
-        </Field>
+        </FormField>
 
-        <Field
+        <FormField
           id={fieldId("address")}
           label="Endereço da carteira"
           required
@@ -153,9 +151,9 @@ export function WalletForm({
             value={values.address}
             onChange={(event) => set("address", event.target.value)}
           />
-        </Field>
+        </FormField>
 
-        <Field id={fieldId("secondaryAddress")} error={errors.secondaryAddress}>
+        <FormField id={fieldId("secondaryAddress")} error={errors.secondaryAddress}>
           <Input
             {...fieldControl(
               fieldId("secondaryAddress"),
@@ -169,30 +167,29 @@ export function WalletForm({
             value={values.secondaryAddress}
             onChange={(event) => set("secondaryAddress", event.target.value)}
           />
-        </Field>
+        </FormField>
 
-        <Field
+        <FormField
           id={fieldId("walletType")}
           label="Tipo de carteira"
           required
           error={errors.walletType}
         >
-          <Select
-            {...fieldControl(fieldId("walletType"), errors.walletType)}
+          <SelectField
+            id={fieldId("walletType")}
             name="walletType"
             value={values.walletType}
-            onChange={(event) => set("walletType", event.target.value)}
-          >
-            <option value="">Selecione uma carteira</option>
-            {WALLET_PROVIDERS.map((wallet) => (
-              <option key={wallet.id} value={wallet.id}>
-                {wallet.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+            error={errors.walletType}
+            placeholder="Selecione uma carteira"
+            options={WALLET_PROVIDERS.map((wallet) => ({
+              value: wallet.id,
+              label: wallet.label,
+            }))}
+            onValueChange={(value) => set("walletType", value)}
+          />
+        </FormField>
 
-        <Field
+        <FormField
           id={fieldId("referralCode")}
           label="Código de indicação"
           required
@@ -205,9 +202,9 @@ export function WalletForm({
             value={values.referralCode}
             onChange={(event) => set("referralCode", event.target.value)}
           />
-        </Field>
+        </FormField>
 
-        <Field
+        <FormField
           id={fieldId("email")}
           label="E-mail"
           required
@@ -221,9 +218,9 @@ export function WalletForm({
             value={values.email}
             onChange={(event) => set("email", event.target.value)}
           />
-        </Field>
+        </FormField>
 
-        <Field
+        <FormField
           id={fieldId("ensName")}
           label="Nome ENS"
           required
@@ -238,7 +235,7 @@ export function WalletForm({
             onValueChange={(value) => set("ensName", value)}
             onDomainChange={(domain) => set("ensDomain", domain)}
           />
-        </Field>
+        </FormField>
       </div>
 
       <div aria-live="polite" className="space-y-3">
@@ -264,16 +261,14 @@ export function WalletForm({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <button
+        <Button
           type="submit"
+          size="lg"
           disabled={saving}
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "h-10 rounded-[4px] px-6 text-sm font-bold",
-          )}
+          className="h-10 rounded-[4px] px-6 text-sm font-bold"
         >
           {saving ? "Salvando..." : submitLabel}
-        </button>
+        </Button>
 
         {extraActions}
 

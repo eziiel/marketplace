@@ -1,5 +1,13 @@
-import { useRef, useState, type MouseEvent } from "react";
+import { useState } from "react";
 import { X, ZoomIn } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export interface NftGalleryProps {
@@ -16,14 +24,7 @@ export function NftGallery({
   className,
 }: NftGalleryProps) {
   const [index, setIndex] = useState(0);
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const current = images[Math.min(index, images.length - 1)];
-
-  function closeOnBackdrop(event: MouseEvent<HTMLDialogElement>) {
-    if (event.target === event.currentTarget) {
-      dialogRef.current?.close();
-    }
-  }
 
   return (
     <div
@@ -82,37 +83,47 @@ export function NftGallery({
               Esgotado
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => dialogRef.current?.showModal()}
-            aria-label="Ampliar imagem"
-            className="absolute top-3 right-3 grid size-8 place-items-center rounded-full bg-background/85 text-foreground transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-highlight"
-          >
-            <ZoomIn className="size-4" aria-hidden />
-          </button>
+
+          <Dialog>
+            <DialogTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Ampliar imagem"
+                  className="absolute top-3 right-3 rounded-full bg-background/85 text-foreground hover:bg-background focus-visible:outline-2 focus-visible:outline-highlight"
+                />
+              }
+            >
+              <ZoomIn className="size-4" aria-hidden />
+            </DialogTrigger>
+
+            <DialogContent
+              aria-label={`${name} ampliado`}
+              showCloseButton={false}
+              className="w-auto max-w-[90vw] rounded-[8px] p-3 sm:max-w-[90vw]"
+            >
+              <img
+                src={current}
+                alt={name}
+                className="max-h-[80vh] w-auto max-w-full rounded-[12px] object-contain"
+              />
+              <DialogClose
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-lg"
+                    aria-label="Fechar"
+                    className="absolute top-5 right-5 rounded-full bg-background/85 text-foreground hover:bg-background focus-visible:outline-2 focus-visible:outline-highlight"
+                  />
+                }
+              >
+                <X className="size-4" aria-hidden />
+              </DialogClose>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
-
-      <dialog
-        ref={dialogRef}
-        aria-label={`${name} ampliado`}
-        onClick={closeOnBackdrop}
-        className="m-auto max-h-[90vh] max-w-[90vw] rounded-[8px] bg-card p-3 backdrop:bg-black/80"
-      >
-        <img
-          src={current}
-          alt={name}
-          className="max-h-[80vh] w-auto max-w-full rounded-[12px] object-contain"
-        />
-        <button
-          type="button"
-          onClick={() => dialogRef.current?.close()}
-          aria-label="Fechar"
-          className="absolute top-5 right-5 grid size-9 place-items-center rounded-full bg-background/85 text-foreground transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-highlight"
-        >
-          <X className="size-4" aria-hidden />
-        </button>
-      </dialog>
     </div>
   );
 }

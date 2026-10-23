@@ -25,9 +25,7 @@ export function RootLayout() {
 
   return (
     <>
-      <div inert={open ? true : undefined}>
-        <Outlet />
-      </div>
+      <Outlet />
       {open && (
         <AuthModal mode={mode} onClose={closeModal} onModeChange={changeMode} />
       )}

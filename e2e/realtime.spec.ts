@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { chooseOption } from "./select";
 
 const EMAIL = "ana@example.com";
 const PASSWORD = "Teste@123";
@@ -142,7 +143,7 @@ test.describe("Tempo real", () => {
     await page
       .getByLabel("Endereço da carteira")
       .fill("0x1234567890abcdef1234567890abcdef12345678");
-    await page.getByLabel("Tipo de carteira").selectOption("metamask");
+    await chooseOption(page, "Tipo de carteira", "MetaMask");
 
     await page.getByRole("radio", { name: /Principal/ }).check();
     await page.getByRole("button", { name: "Conectar carteira" }).click();

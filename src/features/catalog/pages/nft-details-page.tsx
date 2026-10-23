@@ -23,6 +23,7 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { crumbs } from "@/components/layout/crumbs";
 import { BrandIcon } from "@/components/icons/brand-icon";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
+import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
@@ -286,8 +287,8 @@ export function NftDetailsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
+              <Button
+                size="lg"
                 disabled={addCartMutation.isPending || soldOut}
                 onClick={() => {
                   addCartMutation.mutate({
@@ -296,33 +297,28 @@ export function NftDetailsPage() {
                     quantity: effectiveQuantity,
                   });
                 }}
-                className={cn(
-                  buttonVariants({ size: "lg" }),
-                  "h-[38px] min-w-[130px] rounded-[4px] px-5 text-sm font-bold uppercase",
-                )}
+                className="h-[38px] min-w-[130px] rounded-[4px] px-5 text-sm font-bold uppercase"
               >
                 {addCartMutation.isPending
                   ? "Adicionando..."
                   : soldOut
                     ? "Esgotado"
                     : "Comprar"}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
                 onClick={handleFavorite}
                 disabled={favoritePending}
                 aria-pressed={isFavorite}
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "h-[38px] min-w-[130px] gap-2 rounded-[4px] border-primary bg-transparent px-4 text-sm text-highlight hover:bg-primary/10 hover:text-highlight dark:border-primary dark:bg-transparent dark:hover:bg-primary/10",
-                )}
+                className="h-[38px] min-w-[130px] gap-2 rounded-[4px] border-primary bg-transparent px-4 text-sm text-highlight hover:bg-primary/10 hover:text-highlight dark:border-primary dark:bg-transparent dark:hover:bg-primary/10"
               >
                 <Heart
                   className={cn("size-4", isFavorite && "fill-highlight")}
                   aria-hidden
                 />
                 {isFavorite ? "Favoritado" : "Favoritar"}
-              </button>
+              </Button>
             </div>
           </div>
 
