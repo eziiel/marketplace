@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { fieldControl } from "@/components/ui/field-control";
-import { ENS_DOMAINS } from "../types/profile";
+import { ENS_DOMAINS } from "@/lib/ens";
 
 export function EnsField({
   id,

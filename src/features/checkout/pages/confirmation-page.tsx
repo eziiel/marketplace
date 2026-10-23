@@ -24,6 +24,10 @@ import { useLogout } from "@/features/auth/hooks/use-logout";
 
 import { useOrder } from "../hooks/use-order";
 import { useReceipt } from "../hooks/use-receipt";
+import {
+  shortAddress,
+  walletKindLabel,
+} from "@/features/wallets/lib/wallet-display";
 import { useNetworks } from "../hooks/use-networks";
 
 function ConfirmationShell({ children }: { children: ReactNode }) {
@@ -231,6 +235,17 @@ export function ConfirmationPage() {
               {networkLabel}
             </dd>
           </div>
+          {order.wallet && (
+            <div className="bg-card px-4 py-3">
+              <dt className="text-xs text-muted-foreground">Carteira</dt>
+              <dd className="mt-0.5 truncate font-medium text-foreground">
+                {order.wallet.nickname || walletKindLabel(order.wallet.kind)}
+              </dd>
+              <dd className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums">
+                {shortAddress(order.wallet.address)}
+              </dd>
+            </div>
+          )}
         </dl>
 
         <div className="px-6 py-6">

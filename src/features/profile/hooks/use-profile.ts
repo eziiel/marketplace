@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getProfile } from "../api/get-profile";
-import { profileKey, useSessionToken } from "./use-profile-keys";
+import { useSessionToken } from "@/lib/session-token";
+import { profileKey } from "./profile-keys";
 
 export function useProfile() {
   const token = useSessionToken();

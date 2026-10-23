@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 
-function results(page: Parameters<typeof test>[1] extends never ? never : import("@playwright/test").Page) {
+function results(
+  page: Parameters<typeof test>[1] extends never
+    ? never
+    : import("@playwright/test").Page,
+) {
   return page.getByRole("list", { name: "Resultados do catálogo" });
 }
 
@@ -18,7 +22,7 @@ test.describe("Catálogo", () => {
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Todos os NFTs" }),
-    ).toHaveAttribute("aria-current", "true");
+    ).toHaveAttribute("aria-current", "page");
     await expect(
       page.getByRole("combobox", { name: /Ordenar por/ }),
     ).toHaveValue("recent");

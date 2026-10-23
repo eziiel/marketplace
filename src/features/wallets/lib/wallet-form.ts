@@ -1,5 +1,10 @@
-import type { CollectorWallet, WalletInput, WalletKind } from "../types/wallet";
-import { EMAIL, ENS_LABEL, WALLET_ADDRESS } from "./validation";
+import type { CollectorWallet, WalletInput, WalletKind } from "@/features/wallets/types/wallet";
+import { EMAIL, ENS_LABEL } from "@/lib/form-validation";
+import {
+  addressHint,
+  isValidAddress,
+  type AddressFormat,
+} from "./address";
 
 export type WalletFormErrors = Partial<Record<keyof WalletInput, string>>;
 
@@ -50,7 +55,10 @@ export function walletToForm(wallet: CollectorWallet): WalletInput {
   };
 }
 
-export function validateWalletForm(values: WalletInput): WalletFormErrors {
+export function validateWalletForm(
+  values: WalletInput,
+  addressFormat?: AddressFormat,
+): WalletFormErrors {
   const errors: WalletFormErrors = {};
 
   if (values.displayName.trim().length < 2) {
@@ -69,19 +77,19 @@ export function validateWalletForm(values: WalletInput): WalletFormErrors {
     errors.profileName = "Informe o nome do perfil.";
   }
 
-  if (!WALLET_ADDRESS.test(values.address.trim())) {
-    errors.address = "Informe um endereço 0x válido com 40 caracteres.";
+  if (!isValidAddress(values.address, addressFormat)) {
+    errors.address = addressHint(addressFormat);
   }
 
   const secondary = values.secondaryAddress.trim();
 
   if (
     secondary.length > 0 &&
-    !WALLET_ADDRESS.test(secondary) &&
+    !isValidAddress(secondary, addressFormat) &&
     !/^[a-z0-9-]{3,63}\.(eth|xyz|nft)$/.test(secondary.toLowerCase())
   ) {
     errors.secondaryAddress =
-      "Informe um endereço 0x válido ou um nome ENS como colecionador.eth.";
+      "Informe um endereço válido para a rede ou um nome ENS como colecionador.eth.";
   }
 
   if (!values.walletType) {

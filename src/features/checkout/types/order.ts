@@ -1,3 +1,14 @@
+import type { WalletKind } from "@/features/wallets/types/wallet";
+
+export interface OrderWallet {
+  id: string;
+  kind: WalletKind;
+  nickname: string;
+  address: string;
+  networkId: string;
+  walletType: string;
+}
+
 export type OrderStatus = "pending" | "confirmed" | "refused";
 
 export interface OrderItem {
@@ -25,6 +36,7 @@ export interface Order {
   items: OrderItem[];
   totals: OrderTotals;
   networkId: string;
+  wallet: OrderWallet | null;
   couponCode: string | null;
   createdAt: string;
   confirmedAt: string | null;
@@ -35,6 +47,7 @@ export interface Order {
 
 export interface CreateOrderInput {
   quoteId: string;
+  walletId: string;
 }
 
 export interface Receipt {
@@ -43,6 +56,7 @@ export interface Receipt {
   items: OrderItem[];
   totals: OrderTotals;
   networkId: string;
+  wallet: OrderWallet | null;
   transactionHash: string | null;
   explorerUrl: string | null;
   confirmedAt: string | null;

@@ -17,6 +17,42 @@ async function addGenesisToCart(page: Page) {
   await expect(page.getByText("Item adicionado ao carrinho!")).toBeVisible();
 }
 
+async function registerWallet(page: Page) {
+  await page.evaluate(async () => {
+    const token = localStorage.getItem("marketplace-auth-token");
+    const sessionId = localStorage.getItem("marketplace-session-id");
+
+    await fetch("/api/wallets", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "X-Session-Id": sessionId ?? "",
+      },
+      body: JSON.stringify({
+        kind: "primary",
+        displayName: "Ana Silva",
+        walletNickname: "Carteira principal",
+        networkId: "ethereum",
+        profileName: "Ana Colecionadora",
+        address: "0x1234567890abcdef1234567890abcdef12345678",
+        secondaryAddress: "",
+        walletType: "metamask",
+        referralCode: "KURIO-2026",
+        email: "ana@example.com",
+        ensName: "ana-silva",
+        ensDomain: ".eth",
+      }),
+    });
+  });
+}
+
+async function selectAndConnectWallet(page: Page) {
+  await page.getByRole("radio", { name: /Principal/ }).check();
+  await page.getByRole("button", { name: "Conectar carteira" }).click();
+  await expect(page.getByText("Carteira conectada.")).toBeVisible();
+}
+
 async function fillCollectorForm(page: Page) {
   await page.getByLabel("Nome de usuário").fill("ana.silva");
   await page.getByLabel("Nome do perfil").fill("Ana Colecionadora");
@@ -54,6 +90,7 @@ async function getCartItemCount(page: Page): Promise<number> {
 test.describe("Checkout", () => {
   test("compra completa do catálogo ao recibo confirmado", async ({ page }) => {
     await login(page);
+    await registerWallet(page);
     await addGenesisToCart(page);
 
     await page.goto("/checkout");
@@ -62,6 +99,12 @@ test.describe("Checkout", () => {
       page.getByRole("heading", { name: "Perfil do colecionador" }),
     ).toBeVisible();
     await expect(page.getByText("1.1921 ETH")).toBeVisible();
+
+    await expect(
+      page.getByRole("button", { name: "Confirmar compra" }),
+    ).toBeDisabled();
+
+    await selectAndConnectWallet(page);
 
     await page.getByRole("button", { name: "Confirmar compra" }).click();
     await expect(page.getByText("Informe um nome de usuário")).toBeVisible();
@@ -83,6 +126,7 @@ test.describe("Checkout", () => {
     page,
   }) => {
     await login(page);
+    await registerWallet(page);
     await addGenesisToCart(page);
     await setScenario(page, "payment_refused");
 
@@ -92,6 +136,7 @@ test.describe("Checkout", () => {
     ).toBeVisible();
     await expect(page.getByText("Total", { exact: true })).toBeVisible();
 
+    await selectAndConnectWallet(page);
     await fillCollectorForm(page);
     await page.getByRole("button", { name: "Confirmar compra" }).click();
 
@@ -118,6 +163,27 @@ test.describe("Checkout", () => {
         "X-Session-Id": sessionId ?? "",
       };
 
+      const walletId = await fetch("/api/wallets", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          kind: "primary",
+          displayName: "Ana Silva",
+          walletNickname: "Carteira principal",
+          networkId: "ethereum",
+          profileName: "Ana Colecionadora",
+          address: "0x1234567890abcdef1234567890abcdef12345678",
+          secondaryAddress: "",
+          walletType: "metamask",
+          referralCode: "KURIO-2026",
+          email: "ana@example.com",
+          ensName: "ana-silva",
+          ensDomain: ".eth",
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => data.wallet.id as string);
+
       const quoteOne = await fetch("/api/quote", {
         method: "POST",
         headers,
@@ -129,13 +195,13 @@ test.describe("Checkout", () => {
       const first = await fetch("/api/orders", {
         method: "POST",
         headers: { ...headers, "Idempotency-Key": key },
-        body: JSON.stringify({ quoteId: quoteOne.id }),
+        body: JSON.stringify({ quoteId: quoteOne.id, walletId }),
       }).then((response) => response.json());
 
       const secondResponse = await fetch("/api/orders", {
         method: "POST",
         headers: { ...headers, "Idempotency-Key": key },
-        body: JSON.stringify({ quoteId: quoteOne.id }),
+        body: JSON.stringify({ quoteId: quoteOne.id, walletId }),
       });
       const second = await secondResponse.json();
 
@@ -148,7 +214,7 @@ test.describe("Checkout", () => {
       const conflictResponse = await fetch("/api/orders", {
         method: "POST",
         headers: { ...headers, "Idempotency-Key": key },
-        body: JSON.stringify({ quoteId: quoteTwo.id }),
+        body: JSON.stringify({ quoteId: quoteTwo.id, walletId }),
       });
 
       return {

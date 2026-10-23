@@ -47,6 +47,27 @@ test.describe("Cenários de simulação", () => {
         "X-Session-Id": sessionId,
       };
 
+      const walletId = await fetch("/api/wallets", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          kind: "primary",
+          displayName: "Ana Silva",
+          walletNickname: "Carteira principal",
+          networkId: "ethereum",
+          profileName: "Ana Colecionadora",
+          address: "0x1234567890abcdef1234567890abcdef12345678",
+          secondaryAddress: "",
+          walletType: "metamask",
+          referralCode: "KURIO-2026",
+          email: "ana@example.com",
+          ensName: "ana-silva",
+          ensDomain: ".eth",
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => data.wallet.id as string);
+
       await fetch("/api/test/scenario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,7 +89,7 @@ test.describe("Cenários de simulação", () => {
       const order = await fetch("/api/orders", {
         method: "POST",
         headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ quoteId: quote.id, walletId }),
       }).then((response) => response.json());
 
       let status = order.status as string;
@@ -114,6 +135,27 @@ test.describe("Cenários de simulação", () => {
         "X-Session-Id": sessionId,
       };
 
+      const walletId = await fetch("/api/wallets", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          kind: "primary",
+          displayName: "Ana Silva",
+          walletNickname: "Carteira principal",
+          networkId: "ethereum",
+          profileName: "Ana Colecionadora",
+          address: "0x1234567890abcdef1234567890abcdef12345678",
+          secondaryAddress: "",
+          walletType: "metamask",
+          referralCode: "KURIO-2026",
+          email: "ana@example.com",
+          ensName: "ana-silva",
+          ensDomain: ".eth",
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => data.wallet.id as string);
+
       await fetch("/api/cart/items", {
         method: "POST",
         headers,
@@ -135,7 +177,7 @@ test.describe("Cenários de simulação", () => {
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ quoteId: quote.id, walletId }),
       });
       const body = await response.json();
 
@@ -179,6 +221,27 @@ test.describe("Cenários de simulação", () => {
         "X-Session-Id": sessionId,
       };
 
+      const walletId = await fetch("/api/wallets", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          kind: "primary",
+          displayName: "Ana Silva",
+          walletNickname: "Carteira principal",
+          networkId: "ethereum",
+          profileName: "Ana Colecionadora",
+          address: "0x1234567890abcdef1234567890abcdef12345678",
+          secondaryAddress: "",
+          walletType: "metamask",
+          referralCode: "KURIO-2026",
+          email: "ana@example.com",
+          ensName: "ana-silva",
+          ensDomain: ".eth",
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => data.wallet.id as string);
+
       await fetch("/api/cart/items", {
         method: "POST",
         headers,
@@ -200,7 +263,7 @@ test.describe("Cenários de simulação", () => {
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ quoteId: quote.id, walletId }),
       });
       const body = await response.json();
 
@@ -244,6 +307,27 @@ test.describe("Cenários de simulação", () => {
         "X-Session-Id": sessionId,
       };
 
+      const walletId = await fetch("/api/wallets", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          kind: "primary",
+          displayName: "Ana Silva",
+          walletNickname: "Carteira principal",
+          networkId: "ethereum",
+          profileName: "Ana Colecionadora",
+          address: "0x1234567890abcdef1234567890abcdef12345678",
+          secondaryAddress: "",
+          walletType: "metamask",
+          referralCode: "KURIO-2026",
+          email: "ana@example.com",
+          ensName: "ana-silva",
+          ensDomain: ".eth",
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => data.wallet.id as string);
+
       await fetch("/api/cart/items", {
         method: "POST",
         headers,
@@ -267,14 +351,14 @@ test.describe("Cenários de simulação", () => {
       const firstResponse = await fetch("/api/orders", {
         method: "POST",
         headers: { ...headers, "Idempotency-Key": key },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ quoteId: quote.id, walletId }),
       });
       const firstBody = await firstResponse.json();
 
       const secondResponse = await fetch("/api/orders", {
         method: "POST",
         headers: { ...headers, "Idempotency-Key": key },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ quoteId: quote.id, walletId }),
       });
       const secondBody = await secondResponse.json();
 
@@ -329,6 +413,27 @@ test.describe("Cenários de simulação", () => {
         "X-Session-Id": sessionId,
       };
 
+      const walletId = await fetch("/api/wallets", {
+        method: "POST",
+        headers: headersA,
+        body: JSON.stringify({
+          kind: "primary",
+          displayName: "Ana Silva",
+          walletNickname: "Carteira principal",
+          networkId: "ethereum",
+          profileName: "Ana Colecionadora",
+          address: "0x1234567890abcdef1234567890abcdef12345678",
+          secondaryAddress: "",
+          walletType: "metamask",
+          referralCode: "KURIO-2026",
+          email: "ana@example.com",
+          ensName: "ana-silva",
+          ensDomain: ".eth",
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => data.wallet.id as string);
+
       await fetch("/api/cart/items", {
         method: "POST",
         headers: headersA,
@@ -344,7 +449,7 @@ test.describe("Cenários de simulação", () => {
       const order = await fetch("/api/orders", {
         method: "POST",
         headers: { ...headersA, "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ quoteId: quote.id, walletId }),
       }).then((response) => response.json());
 
       const ownerStatus = await fetch(`/api/orders/${order.id}`, {

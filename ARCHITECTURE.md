@@ -193,18 +193,21 @@ Duas rotas protegidas (`beforeLoad: requireAuth`) compartilham o mesmo shell
 | Método | Rota | Corpo | Respostas |
 | ------ | ---- | ----- | --------- |
 | `GET` | `/api/profile` | — | `200 { profile }`, `401` |
-| `PUT` | `/api/profile` | `displayName`, `username`, `email`, `ensName`, `ensDomain`, `walletNickname`, `avatar` | `200 { profile }`, `401`, `409` (e-mail/usuário em uso), `422 { message, errors }` |
-| `POST` | `/api/profile/password` | `currentPassword`, `newPassword`, `confirmPassword` | `200 { changedAt }`, `401`, `404`, `422 { message, errors }` |
+| `PUT` | `/api/profile` | `displayName`, `username`, `email`, `ensName`, `ensDomain`, `walletNickname`, `avatar` | `200 { profile }`, `400 { message, errors }`, `401`, `409` (e-mail/usuário em uso) |
+| `POST` | `/api/profile/password` | `currentPassword`, `newPassword`, `confirmPassword` | `200 { changedAt }`, `400 { message, errors }`, `401`, `404` |
 | `GET` | `/api/wallets` | — | `200 { wallets }`, `401` |
-| `POST` | `/api/wallets` | `WalletInput` | `201 { wallet }`, `401`, `409` (tipo ou endereço duplicado), `422 { message, errors }` |
-| `PUT` | `/api/wallets/:id` | `WalletInput` | `200 { wallet }`, `401`, `404`, `409`, `422` |
+| `POST` | `/api/wallets` | `WalletInput` | `201 { wallet }`, `400 { message, errors }`, `401`, `409` (tipo ou endereço duplicado) |
+| `PUT` | `/api/wallets/:id` | `WalletInput` | `200 { wallet }`, `400`, `401`, `404`, `409` |
+| `POST` | `/api/wallets/:id/primary` | — | `200 { wallets }`, `401`, `404` |
+| `POST` | `/api/wallets/:id/connect` | — | `200 { walletId, status }`, `401`, `404`, `409` (recusada) |
+| `POST` | `/api/wallets/:id/disconnect` | — | `200 { walletId, status }`, `401`, `404` |
 | `DELETE` | `/api/wallets/:id` | — | `200 { wallets }`, `401`, `404` |
 
 `WalletInput` = `kind` (`primary` \| `secondary`), `displayName`, `walletNickname`,
 `networkId`, `profileName`, `address`, `secondaryAddress`, `walletType`,
 `referralCode`, `email`, `ensName`, `ensDomain`.
 
-Erros de validação chegam em `422` com `errors` por campo. A interface aplica cada
+Erros de validação chegam em `400` com `errors` por campo. A interface aplica cada
 mensagem ao campo correspondente (`aria-describedby` + `role="alert"`) e move o foco
 para o primeiro inválido, na mesma ordem usada pela validação do cliente.
 
@@ -267,6 +270,76 @@ e eventos Socket.IO não foram tocados.
   com a aba ativa sublinhada e o conteúdo empilha em uma coluna.
 - **Marcador de obrigatório**: o asterisco usa `#f0805f` do frame, definido uma única
   vez em `components/ui/field.tsx`.
+
+## ADR-013 — Gerenciamento de carteiras simuladas por usuário
+
+**Contexto.** T9 e R8 exigem que o colecionador cadastre, consulte, edite, remova e
+selecione carteiras simuladas, e que a compra use uma carteira cadastrada. O projeto
+já tinha autenticação por token, cotação, idempotência e eventos Socket.IO que não
+podiam ser comprometidos.
+
+**Decisão.**
+
+1. **Feature própria.** Carteiras saíram de `features/profile` para
+   `features/wallets`, com `api/`, `hooks/`, `components/`, `lib/`, `pages/` e
+   `types/`. O perfil continua dono do shell e do menu lateral, que as duas telas
+   compartilham. Os helpers usados pelas duas features subiram para `src/lib`
+   (`form-validation`, `api-error`, `session-token`, `ens`) e `src/components/ui`
+   (`ens-field`). `WALLET_PROVIDERS` saiu de `features/checkout` para
+   `features/wallets`, invertendo a dependência para a direção correta: o checkout
+   depende de carteiras, não o contrário.
+
+2. **Modelo.** Uma carteira é `{ id, kind, displayName, walletNickname, networkId,
+   profileName, address, secondaryAddress, walletType, referralCode, email, ensName,
+   ensDomain, createdAt, updatedAt }`. Os campos de titular que também existem no
+   perfil não são copiados de lá: o formulário sugere os valores do perfil como
+   ponto de partida, mas o que vale para a carteira é o que foi salvo nela, porque
+   uma carteira secundária pode ter outro titular. O perfil continua sendo a fonte
+   da identidade do colecionador; a carteira é a fonte do endereço de recebimento.
+
+3. **Principal e secundária.** `kind` identifica a principal. O invariante "no
+   máximo uma principal" é garantido no store, não na interface. A primeira carteira
+   cadastrada é sempre a principal. `POST /api/wallets/:id/primary` troca os papéis
+   das duas. Remover a principal promove a secundária restante; remover a última
+   deixa a lista vazia. A edição nunca muda o `kind` nem o `id`.
+
+4. **Endereço por rede.** `GET /api/networks` passou a devolver `addressFormat`.
+   A validação consulta esse campo em vez de assumir `0x`: EVM usa `0x` com 40
+   hexadecimais, Solana usa base58 de 32 a 44 caracteres. Cliente e handler usam a
+   mesma função. Solana entrou na lista de redes justamente para o caso não-EVM ser
+   exercitável.
+
+5. **Conexão simulada.** `POST /api/wallets/:id/connect` e `/disconnect` simulam o
+   ciclo da carteira na camada de rede, não na interface. A recusa é determinística
+   pelo cenário `wallet_refused`, no mesmo interruptor que já existia para pagamento.
+   Não há integração com MetaMask nem com blockchain, e nenhuma chave privada ou seed
+   phrase é pedida ou guardada.
+
+6. **Pedido.** `POST /api/orders` passou a exigir `walletId`. O handler confere se a
+   carteira é do usuário da sessão e se a rede dela bate com a rede da cotação,
+   respondendo `409` quando não bate. O pedido guarda um **snapshot** da carteira
+   (`order.wallet`), então remover a carteira depois não altera pedidos nem recibos
+   já criados. A chave de idempotência passou a comparar `quoteId:walletId`: repetir
+   a mesma chave com a mesma carteira devolve o mesmo pedido, e trocar a carteira com
+   a chave antiga responde `409`, como já acontecia ao trocar a cotação.
+
+7. **Autorização.** Todos os handlers usam `getRequestUser()`. Nenhum `userId` vem do
+   corpo da requisição. Uma carteira de outro usuário responde `404`, não `403`, para
+   não revelar a existência do registro.
+
+**Consequências.**
+
+- O checkout não confirma mais sem carteira selecionada, compatível e conectada. Os
+  testes que criavam pedidos direto pela API passaram a cadastrar uma carteira antes;
+  as asserções de idempotência, cenários de falha e tempo real continuam as mesmas.
+- `POST /api/test/reset` limpa carteiras e perfis, para o cenário conhecido voltar
+  íntegro.
+- Validação responde `400` com `errors` por campo, alinhando perfil e carteiras ao
+  mesmo contrato de erro.
+
+**Alternativas descartadas.** Guardar só o `walletId` no pedido foi descartado porque
+remover a carteira apagaria a informação do recibo. Deixar `walletId` opcional foi
+descartado porque a seleção deixaria de ser real no servidor simulado.
 
 ## Principais trade-offs
 

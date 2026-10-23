@@ -1,5 +1,5 @@
 import type { CollectorProfile, UpdateProfileInput } from "../types/profile";
-import { EMAIL, ENS_LABEL, USERNAME } from "./validation";
+import { EMAIL, ENS_LABEL, USERNAME } from "@/lib/form-validation";
 
 export type ProfileFormErrors = Partial<
   Record<keyof UpdateProfileInput, string>

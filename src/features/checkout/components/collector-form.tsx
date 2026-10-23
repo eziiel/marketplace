@@ -2,14 +2,14 @@ import { useId, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CheckoutNetwork } from "../types/quote";
-import { WALLET_PROVIDERS } from "../types/wallet";
+import { WALLET_PROVIDERS } from "@/features/wallets/types/wallet";
 import type {
   CollectorFormErrors,
   CollectorFormValues,
 } from "../lib/collector-form";
 
 const controlClass =
-  "h-10 w-full rounded-[4px] border border-foreground/70 bg-transparent px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-highlight focus-visible:outline-none aria-invalid:border-destructive";
+  "h-10 w-full rounded-[4px] border border-foreground/70 bg-transparent px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-highlight focus-visible:outline-none aria-invalid:border-destructive [&>option]:bg-popover [&>option]:text-foreground [&>option:disabled]:text-muted-foreground";
 
 function Field({
   id,

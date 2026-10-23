@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getWallets } from "../api/get-wallets";
-import { useSessionToken, walletsKey } from "./use-profile-keys";
+import { getWallets } from "@/features/wallets/api/get-wallets";
+import { useSessionToken } from "@/lib/session-token";
+import { walletsKey } from "./wallet-keys";
 
 export function useWallets() {
   const token = useSessionToken();

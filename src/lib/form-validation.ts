@@ -1,4 +1,3 @@
-export const WALLET_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const ENS_LABEL = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 export const USERNAME = /^[a-zA-Z0-9._-]{3,30}$/;

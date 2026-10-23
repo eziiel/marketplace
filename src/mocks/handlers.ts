@@ -7,7 +7,7 @@ import {
 } from "@/features/catalog/types/nft";
 import { createUser, findUserByEmail } from "./data/user-store";
 import { verifyPassword } from "./data/password-store";
-import { profileHandlers } from "./profile-handlers";
+import { accountHandlers } from "./account-handlers";
 import {
   getFavorites,
   addFavorite,
@@ -59,8 +59,10 @@ import type {
   Order,
   OrderItem,
   OrderTotals,
+  OrderWallet,
   Receipt,
 } from "@/features/checkout/types/order";
+import { findWallet } from "./data/wallet-store";
 
 const NFT_PAGE_SIZE = 9;
 
@@ -480,6 +482,7 @@ export const handlers = [
         id: network.id,
         label: network.label,
         fee: network.fee,
+        addressFormat: network.addressFormat,
       })),
     );
   }),
@@ -602,7 +605,25 @@ export const handlers = [
       );
     }
 
-    const requestHash = quoteId;
+    const walletId = body?.walletId;
+
+    if (typeof walletId !== "string" || walletId.length === 0) {
+      return HttpResponse.json(
+        { message: "Selecione uma carteira cadastrada para pagar" },
+        { status: 400 },
+      );
+    }
+
+    const wallet = findWallet(auth.user.id, walletId);
+
+    if (!wallet) {
+      return HttpResponse.json(
+        { message: "Carteira não encontrada" },
+        { status: 404 },
+      );
+    }
+
+    const requestHash = `${quoteId}:${walletId}`;
     const existing = getIdempotencyRecord(auth.user.id, idempotencyKey);
 
     if (existing) {
@@ -632,6 +653,16 @@ export const handlers = [
     if (new Date(stored.quote.expiresAt).getTime() <= Date.now()) {
       return HttpResponse.json(
         { message: "Cotação expirada, refaça a cotação" },
+        { status: 409 },
+      );
+    }
+
+    if (wallet.networkId !== stored.quote.networkId) {
+      return HttpResponse.json(
+        {
+          message:
+            "A carteira selecionada não é compatível com a rede da cotação",
+        },
         { status: 409 },
       );
     }
@@ -694,6 +725,15 @@ export const handlers = [
 
     const now = new Date().toISOString();
 
+    const orderWallet: OrderWallet = {
+      id: wallet.id,
+      kind: wallet.kind,
+      nickname: wallet.walletNickname,
+      address: wallet.address,
+      networkId: wallet.networkId,
+      walletType: wallet.walletType,
+    };
+
     const orderItems: OrderItem[] = stored.quote.items.map((line) => ({
       nftId: line.nftId,
       edition: line.edition,
@@ -719,6 +759,7 @@ export const handlers = [
       items: orderItems,
       totals,
       networkId: stored.quote.networkId,
+      wallet: orderWallet,
       couponCode:
         stored.quote.couponStatus === "applied"
           ? stored.quote.couponCode
@@ -801,6 +842,7 @@ export const handlers = [
       items: order.items,
       totals: order.totals,
       networkId: order.networkId,
+      wallet: order.wallet,
       transactionHash: order.transactionHash,
       explorerUrl: order.explorerUrl,
       confirmedAt: order.confirmedAt,
@@ -812,6 +854,8 @@ export const handlers = [
     localStorage.removeItem("marketplace-carts");
     localStorage.removeItem("marketplace-orders");
     localStorage.removeItem("marketplace-quotes");
+    localStorage.removeItem("marketplace-wallets");
+    localStorage.removeItem("marketplace-profiles");
     resetNfts();
     resetScenario();
 
@@ -997,5 +1041,5 @@ export const handlers = [
 
     return HttpResponse.json({ nftIds: favorites });
   }),
-  ...profileHandlers,
+  ...accountHandlers,
 ];

@@ -40,6 +40,36 @@ async function login(page: Page) {
   await expect(page.getByText("Olá, Ana Silva")).toBeVisible();
 }
 
+async function registerWallet(page: Page) {
+  await page.evaluate(async () => {
+    const token = localStorage.getItem("marketplace-auth-token");
+    const sessionId = localStorage.getItem("marketplace-session-id");
+
+    await fetch("/api/wallets", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "X-Session-Id": sessionId ?? "",
+      },
+      body: JSON.stringify({
+        kind: "primary",
+        displayName: "Ana Silva",
+        walletNickname: "Carteira principal",
+        networkId: "ethereum",
+        profileName: "Ana Colecionadora",
+        address: "0x1234567890abcdef1234567890abcdef12345678",
+        secondaryAddress: "",
+        walletType: "metamask",
+        referralCode: "KURIO-2026",
+        email: "ana@example.com",
+        ensName: "ana-silva",
+        ensDomain: ".eth",
+      }),
+    });
+  });
+}
+
 test.describe("Tempo real", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -95,6 +125,7 @@ test.describe("Tempo real", () => {
     page,
   }) => {
     await login(page);
+    await registerWallet(page);
 
     await page.goto("/nfts/1");
     await page.getByRole("button", { name: "Comprar" }).click();
@@ -112,6 +143,11 @@ test.describe("Tempo real", () => {
       .getByLabel("Endereço da carteira")
       .fill("0x1234567890abcdef1234567890abcdef12345678");
     await page.getByLabel("Tipo de carteira").selectOption("metamask");
+
+    await page.getByRole("radio", { name: /Principal/ }).check();
+    await page.getByRole("button", { name: "Conectar carteira" }).click();
+    await expect(page.getByText("Carteira conectada.")).toBeVisible();
+
     await page.getByRole("button", { name: "Confirmar compra" }).click();
 
     await expect(

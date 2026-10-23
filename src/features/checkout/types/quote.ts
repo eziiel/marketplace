@@ -1,7 +1,10 @@
+import type { AddressFormat } from "@/features/wallets/lib/address";
+
 export interface CheckoutNetwork {
   id: string;
   label: string;
   fee: string;
+  addressFormat: AddressFormat;
 }
 
 export interface QuoteLineItem {

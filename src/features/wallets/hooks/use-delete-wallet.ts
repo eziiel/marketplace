@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { deleteWallet } from "../api/delete-wallet";
-import type { WalletsResponse } from "../types/wallet";
-import { useSessionToken, walletsKey } from "./use-profile-keys";
+import { deleteWallet } from "@/features/wallets/api/delete-wallet";
+import type { WalletsResponse } from "@/features/wallets/types/wallet";
+import { useSessionToken } from "@/lib/session-token";
+import { walletsKey } from "./wallet-keys";
 
 export function useDeleteWallet() {
   const queryClient = useQueryClient();

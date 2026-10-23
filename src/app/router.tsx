@@ -16,7 +16,7 @@ import type {
 import { CartPage } from "@/features/cart/pages/cart-page";
 import { CheckoutPage } from "@/features/checkout/pages/checkout-page";
 import { ProfilePage } from "@/features/profile/pages/profile-page";
-import { WalletsPage } from "@/features/profile/pages/wallets-page";
+import { WalletsPage } from "@/features/wallets/pages/wallets-page";
 import { ConfirmationPage } from "@/features/checkout/pages/confirmation-page";
 import { getAuthToken } from "@/features/auth/lib/auth-token";
 import type { AuthMode } from "@/features/auth/components/auth-modal";
@@ -135,6 +135,11 @@ const walletsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/profile/wallets",
   beforeLoad: requireAuth,
+
+  validateSearch: (search: Record<string, unknown>): { from?: "checkout" } => ({
+    from: search.from === "checkout" ? "checkout" : undefined,
+  }),
+
   component: WalletsPage,
 });
 

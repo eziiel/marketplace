@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { updateProfile } from "../api/update-profile";
 import type { ProfileResponse } from "../types/profile";
-import { profileKey, useSessionToken } from "./use-profile-keys";
+import { useSessionToken } from "@/lib/session-token";
+import { profileKey } from "./profile-keys";
 
 export function useUpdateProfile() {
   const queryClient = useQueryClient();

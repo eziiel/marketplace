@@ -97,7 +97,11 @@ fica persistido no `localStorage` do navegador.
   nome ENS, apelido da carteira, avatar (PNG/JPEG/WebP até 512 KB) e troca de senha
   com validação da senha atual e confirmação da nova.
 - **Carteiras** (`/profile/wallets`): carteira principal e secundária com rede, tipo,
-  endereço `0x` verificado, ENS e código de indicação; criar, editar e remover.
+  endereço verificado conforme a rede, ENS e código de indicação. Criar, editar,
+  remover com confirmação e definir qual é a principal.
+- **Carteira no pagamento**: o checkout só confirma com uma carteira cadastrada,
+  compatível com a rede escolhida e conectada. A conexão é simulada pela API e o
+  pedido guarda os dados da carteira usada.
 - **Tempo real**: atualização de preço/estoque de NFTs e do status do pedido via Socket.IO simulado.
 - **Isolamento por usuário**: carrinho, pedidos, favoritos, perfil e carteiras não vazam entre contas.
 
@@ -111,6 +115,22 @@ fica persistido no `localStorage` do navegador.
 | `EXPIRED10` | Cupom expirado (rejeitado) |
 
 Aplique no carrinho (campo **Código promocional**) ou no checkout (link **Aplique aqui**). O cupom aplicado no carrinho é mantido até o pagamento.
+
+### Dados de teste nos formulários
+
+Em `npm run dev`, os formulários de perfil, carteiras e pagamento mostram o botão
+**Preencher com dados de teste**. Ele completa só os campos vazios, preservando o que
+você já digitou, e não aparece no build de produção.
+
+Para preencher à mão, estes valores passam na validação:
+
+| Campo | Valor |
+| ----- | ----- |
+| Endereço da carteira (EVM) | `0x1234567890abcdef1234567890abcdef12345678` |
+| Endereço da carteira (Solana) | `7EqQdEULxWcraVx3mXKFjc84LhCkMGZCkRuDpvcMwJeK` |
+| ENS ou carteira secundária | `colecionador.eth` |
+| Nome ENS | `colecionador-teste` |
+| Nome de usuário | `colecionador.teste` |
 
 ### Cenários de falha (checkout)
 
@@ -134,6 +154,7 @@ Cenários aceitos:
 | `timeout`          | Primeira tentativa retorna 504; o retry com a mesma chave não duplica|
 | `price_changed`    | Preço muda entre cotação e pedido → 409                              |
 | `stock_changed`    | Estoque muda entre cotação e pedido → 409                            |
+| `wallet_refused`   | Conexão da carteira é recusada no checkout                           |
 
 Para restaurar o estado inicial: `await fetch("/api/test/reset", { method: "POST" })`.
 
@@ -143,9 +164,9 @@ Para restaurar o estado inicial: `await fetch("/api/test/reset", { method: "POST
 2. Faça login como **Ana**, favorite alguns NFTs, recarregue a página (persistem).
 3. Adicione itens ao carrinho, vá ao **checkout**, aplique `WELCOME10`, confirme o pedido e veja a **confirmação** em tempo real.
 4. Teste um cenário de falha (ex.: `payment_refused`) e confirme que o carrinho é preservado.
-5. Abra **Meu perfil** pelo "Olá, Ana" no cabeçalho, complete os dados, cadastre uma
-   carteira em **Carteiras** e volte ao checkout: a carteira aparece em "Usar carteira
-   cadastrada" e preenche o formulário.
+5. Abra **Meu perfil** pelo "Olá, Ana" no cabeçalho, complete os dados e cadastre uma
+   carteira em **Carteiras**. No checkout, selecione a carteira, clique em **Conectar
+   carteira** e confirme: o recibo mostra a carteira usada.
 6. Faça logout, entre como **Bruno** e confirme que favoritos, carrinho, pedidos,
    perfil e carteiras são isolados.
 
@@ -162,7 +183,9 @@ então não é preciso iniciar o servidor manualmente.
 Cobertura E2E atual: autenticação, cadastro, catálogo, detalhe do NFT, carrinho,
 checkout (incluindo idempotência e recusa), cenários de falha, tempo real,
 **favoritos** (`e2e/favorites.spec.ts`), **perfil** (`e2e/profile.spec.ts`) e
-**carteiras** (`e2e/wallets.spec.ts`).
+**carteiras** (`e2e/wallets.spec.ts`, incluindo promoção da principal, remoção com
+confirmação, formato de endereço por rede, conexão recusada e compra com carteira
+selecionada).
 
 ## Arquitetura
 

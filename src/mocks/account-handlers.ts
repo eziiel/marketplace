@@ -6,11 +6,11 @@ import type {
   UpdateProfileInput,
 } from "@/features/profile/types/profile";
 import { ENS_DOMAINS } from "@/features/profile/types/profile";
-import type { WalletInput } from "@/features/profile/types/wallet";
+import type { WalletInput } from "@/features/wallets/types/wallet";
 import { validateProfileForm } from "@/features/profile/lib/profile-form";
 import { validatePasswordForm } from "@/features/profile/lib/password-form";
-import { validateWalletForm } from "@/features/profile/lib/wallet-form";
-import { MIN_PASSWORD_LENGTH } from "@/features/profile/lib/validation";
+import { validateWalletForm } from "@/features/wallets/lib/wallet-form";
+import { MIN_PASSWORD_LENGTH } from "@/lib/form-validation";
 
 import { getRequestUser } from "./utils/get-request-user";
 import {
@@ -22,13 +22,15 @@ import {
   createWallet,
   findWallet,
   listWallets,
+  promoteWallet,
   removeWallet,
   updateWallet,
 } from "./data/wallet-store";
 import { findUserByEmail, clearRegisteredPassword } from "./data/user-store";
 import { setUserPassword, verifyPassword } from "./data/password-store";
 import { networks } from "./data/networks";
-import { WALLET_PROVIDERS } from "@/features/checkout/types/wallet";
+import { getScenario } from "./data/scenario-store";
+import { WALLET_PROVIDERS } from "@/features/wallets/types/wallet";
 
 const AVATAR_DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 const AVATAR_MAX_CHARS = 700_000;
@@ -40,8 +42,30 @@ function text(value: unknown): string {
 function invalid(errors: Record<string, string>): Response {
   return HttpResponse.json(
     { message: "Revise os campos destacados.", errors },
-    { status: 422 },
+    { status: 400 },
   );
+}
+
+function walletNetwork(networkId: string) {
+  return networks.find((network) => network.id === networkId);
+}
+
+function validateWallet(input: WalletInput): Record<string, string> {
+  const network = walletNetwork(input.networkId);
+  const errors: Record<string, string> = validateWalletForm(
+    input,
+    network?.addressFormat,
+  ) as Record<string, string>;
+
+  if (!network) {
+    errors.networkId = "Selecione uma rede disponível.";
+  }
+
+  if (!WALLET_PROVIDERS.some((wallet) => wallet.id === input.walletType)) {
+    errors.walletType = "Selecione um tipo de carteira disponível.";
+  }
+
+  return errors;
 }
 
 function badRequest(message: string): Response {
@@ -89,7 +113,7 @@ function readWalletInput(body: Record<string, unknown>): WalletInput {
   };
 }
 
-export const profileHandlers = [
+export const accountHandlers = [
   http.get("/api/profile", ({ request }) => {
     const auth = getRequestUser(request);
 
@@ -191,7 +215,7 @@ export const profileHandlers = [
           message: "A senha atual está incorreta.",
           errors: { currentPassword: "A senha atual está incorreta." },
         },
-        { status: 422 },
+        { status: 400 },
       );
     }
 
@@ -225,18 +249,10 @@ export const profileHandlers = [
     if (!body) return badRequest("Corpo da requisição inválido");
 
     const input = readWalletInput(body);
-    const errors = validateWalletForm(input);
-
-    if (!networks.some((network) => network.id === input.networkId)) {
-      errors.networkId = "Selecione uma rede disponível.";
-    }
-
-    if (!WALLET_PROVIDERS.some((wallet) => wallet.id === input.walletType)) {
-      errors.walletType = "Selecione um tipo de carteira disponível.";
-    }
+    const errors = validateWallet(input);
 
     if (Object.keys(errors).length > 0) {
-      return invalid(errors as Record<string, string>);
+      return invalid(errors);
     }
 
     const existing = listWallets(auth.user.id);
@@ -293,18 +309,10 @@ export const profileHandlers = [
     if (!body) return badRequest("Corpo da requisição inválido");
 
     const input = readWalletInput(body);
-    const errors = validateWalletForm(input);
-
-    if (!networks.some((network) => network.id === input.networkId)) {
-      errors.networkId = "Selecione uma rede disponível.";
-    }
-
-    if (!WALLET_PROVIDERS.some((wallet) => wallet.id === input.walletType)) {
-      errors.walletType = "Selecione um tipo de carteira disponível.";
-    }
+    const errors = validateWallet(input);
 
     if (Object.keys(errors).length > 0) {
-      return invalid(errors as Record<string, string>);
+      return invalid(errors);
     }
 
     const duplicated = listWallets(auth.user.id).find(
@@ -335,20 +343,85 @@ export const profileHandlers = [
     return HttpResponse.json({ wallet });
   }),
 
-  http.delete("/api/wallets/:id", ({ request, params }) => {
+  http.post("/api/wallets/:id/primary", ({ request, params }) => {
     const auth = getRequestUser(request);
 
     if (!auth.ok) return auth.response;
 
     const walletId = typeof params.id === "string" ? params.id : "";
+    const wallets = promoteWallet(auth.user.id, walletId);
 
-    if (!removeWallet(auth.user.id, walletId)) {
+    if (!wallets) {
       return HttpResponse.json(
         { message: "Carteira não encontrada." },
         { status: 404 },
       );
     }
 
-    return HttpResponse.json({ wallets: listWallets(auth.user.id) });
+    return HttpResponse.json({ wallets });
+  }),
+
+  http.post("/api/wallets/:id/connect", ({ request, params }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const walletId = typeof params.id === "string" ? params.id : "";
+    const wallet = findWallet(auth.user.id, walletId);
+
+    if (!wallet) {
+      return HttpResponse.json(
+        { message: "Carteira não encontrada." },
+        { status: 404 },
+      );
+    }
+
+    if (getScenario() === "wallet_refused") {
+      return HttpResponse.json(
+        { message: "Conexão recusada pela carteira." },
+        { status: 409 },
+      );
+    }
+
+    return HttpResponse.json({
+      walletId: wallet.id,
+      status: "connected",
+      connectedAt: new Date().toISOString(),
+    });
+  }),
+
+  http.post("/api/wallets/:id/disconnect", ({ request, params }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const walletId = typeof params.id === "string" ? params.id : "";
+
+    if (!findWallet(auth.user.id, walletId)) {
+      return HttpResponse.json(
+        { message: "Carteira não encontrada." },
+        { status: 404 },
+      );
+    }
+
+    return HttpResponse.json({ walletId, status: "disconnected" });
+  }),
+
+  http.delete("/api/wallets/:id", ({ request, params }) => {
+    const auth = getRequestUser(request);
+
+    if (!auth.ok) return auth.response;
+
+    const walletId = typeof params.id === "string" ? params.id : "";
+    const wallets = removeWallet(auth.user.id, walletId);
+
+    if (!wallets) {
+      return HttpResponse.json(
+        { message: "Carteira não encontrada." },
+        { status: 404 },
+      );
+    }
+
+    return HttpResponse.json({ wallets });
   }),
 ];

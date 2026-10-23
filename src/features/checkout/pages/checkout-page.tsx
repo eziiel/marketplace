@@ -16,9 +16,13 @@ import { cn } from "@/lib/utils";
 import { getAuthToken } from "@/features/auth/lib/auth-token";
 import { useAuthMe } from "@/features/auth/hooks/use-auth-me";
 import { useProfile } from "@/features/profile/hooks/use-profile";
-import { useWallets } from "@/features/profile/hooks/use-wallets";
-import { SavedWalletPicker } from "@/features/profile/components/saved-wallet-picker";
-import type { CollectorWallet } from "@/features/profile/types/wallet";
+import { useWallets } from "@/features/wallets/hooks/use-wallets";
+import { WalletSelector } from "@/features/wallets/components/wallet-selector";
+import { useWalletConnection } from "@/features/wallets/hooks/use-wallet-connection";
+import { shortAddress, walletKindLabel } from "@/features/wallets/lib/wallet-display";
+import { TestFillButton } from "@/components/ui/test-fill-button";
+import { devFillEnabled, keepFilled, sampleCollector } from "@/lib/dev-fill";
+import type { CollectorWallet } from "@/features/wallets/types/wallet";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 
 import { useNetworks } from "../hooks/use-networks";
@@ -34,7 +38,7 @@ import {
   type CollectorFormValues,
 } from "../lib/collector-form";
 import type { Quote } from "../types/quote";
-import { WALLET_BADGES, WALLET_PROVIDERS } from "../types/wallet";
+import { WALLET_BADGES, WALLET_PROVIDERS } from "@/features/wallets/types/wallet";
 
 const FORM_ID = "checkout-form";
 
@@ -164,6 +168,25 @@ export function CheckoutPage() {
 
   const savedWallets = walletsQuery.data?.wallets ?? [];
 
+  function fillSampleCollector() {
+    setForm((current) =>
+      keepFilled(current, {
+        displayName: sampleCollector.displayName,
+        username: sampleCollector.username,
+        profileName: sampleCollector.profileName,
+        walletAddress: sampleCollector.address,
+        secondaryWallet: sampleCollector.secondaryAddress,
+        referralCode: sampleCollector.referralCode,
+        email: sampleCollector.email,
+        ensName: sampleCollector.ensName,
+      }),
+    );
+
+    if (!walletType) setWalletType(sampleCollector.walletType);
+
+    setErrors({});
+  }
+
   function applySavedWallet(wallet: CollectorWallet) {
     setSelectedWalletId(wallet.id);
     setSelectedNetworkId(wallet.networkId);
@@ -182,6 +205,17 @@ export function CheckoutPage() {
   }
 
   const networkId = selectedNetworkId ?? networksQuery.data?.[0]?.id ?? "";
+
+  const selectedWallet =
+    savedWallets.find((wallet) => wallet.id === selectedWalletId) ?? null;
+  const walletConnection = useWalletConnection(selectedWalletId);
+  const activeNetwork = networksQuery.data?.find(
+    (network) => network.id === networkId,
+  );
+  const walletMismatch =
+    selectedWallet !== null && selectedWallet.networkId !== networkId;
+  const walletReady =
+    selectedWallet !== null && !walletMismatch && walletConnection.connected;
 
   const quoteQuery = useQuote(
     { networkId, couponCode: appliedCoupon },
@@ -205,7 +239,12 @@ export function CheckoutPage() {
   }
 
   function handleSubmit() {
-    const nextErrors = validateCollectorForm(form, networkId, walletType);
+    const nextErrors = validateCollectorForm(
+      form,
+      networkId,
+      walletType,
+      activeNetwork?.addressFormat,
+    );
     setErrors(nextErrors);
 
     const firstInvalid = fieldOrder.find((key) => nextErrors[key]);
@@ -228,8 +267,16 @@ export function CheckoutPage() {
       return;
     }
 
+    if (!selectedWallet || walletMismatch || !walletConnection.connected) {
+      return;
+    }
+
     createOrder.mutate(
-      { quoteId: quote.id, idempotencyKey: idempotencyKeyRef.current },
+      {
+        quoteId: quote.id,
+        walletId: selectedWallet.id,
+        idempotencyKey: idempotencyKeyRef.current,
+      },
       {
         onSuccess: (order) => {
           storeCoupon(null);
@@ -274,7 +321,8 @@ export function CheckoutPage() {
     createOrder.isPending ||
     !quote ||
     quote.hasAvailabilityIssue ||
-    quoteQuery.isFetching;
+    quoteQuery.isFetching ||
+    !walletReady;
 
   return (
     <CheckoutShell>
@@ -286,10 +334,21 @@ export function CheckoutPage() {
           >
             Perfil do colecionador
           </h1>
-          <SavedWalletPicker
+          {devFillEnabled && (
+            <TestFillButton onFill={fillSampleCollector} className="mb-5" />
+          )}
+
+          <WalletSelector
             wallets={savedWallets}
+            networks={networksQuery.data ?? []}
+            networkId={networkId}
             selectedId={selectedWalletId}
+            connectionStatus={walletConnection.status}
+            connectionMessage={walletConnection.message}
+            connecting={walletConnection.status === "connecting"}
             onSelect={applySavedWallet}
+            onConnect={() => void walletConnection.connect()}
+            onDisconnect={() => void walletConnection.disconnect()}
             className="mb-6"
           />
 
@@ -461,6 +520,39 @@ export function CheckoutPage() {
                   {errors.walletType}
                 </p>
               </fieldset>
+
+              <div className="mt-4 rounded-[4px] border border-border px-3 py-3 text-xs">
+                <p className="font-bold text-foreground">Resumo do pagamento</p>
+                {selectedWallet ? (
+                  <ul className="mt-2 space-y-1 text-muted-foreground">
+                    <li>
+                      Carteira: {walletKindLabel(selectedWallet.kind)}
+                      {selectedWallet.walletNickname
+                        ? ` · ${selectedWallet.walletNickname}`
+                        : ""}
+                    </li>
+                    <li className="tabular-nums">
+                      Endereço: {shortAddress(selectedWallet.address)}
+                    </li>
+                    <li>Rede: {activeNetwork?.label ?? networkId}</li>
+                    <li>
+                      Conexão:{" "}
+                      {walletConnection.connected
+                        ? "conectada"
+                        : "não conectada"}
+                    </li>
+                    {quote && (
+                      <li className="text-foreground">
+                        Total: {quote.total} {quote.currency}
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-muted-foreground">
+                    Selecione uma carteira cadastrada para concluir a compra.
+                  </p>
+                )}
+              </div>
 
               <button
                 type="submit"

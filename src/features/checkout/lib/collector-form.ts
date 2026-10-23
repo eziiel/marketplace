@@ -1,3 +1,9 @@
+import {
+  addressHint,
+  isValidAddress,
+  type AddressFormat,
+} from "@/features/wallets/lib/address";
+
 export interface CollectorFormValues {
   displayName: string;
   username: string;
@@ -28,13 +34,13 @@ export const emptyCollectorForm: CollectorFormValues = {
   note: "",
 };
 
-const WALLET_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function validateCollectorForm(
   values: CollectorFormValues,
   networkId: string,
   walletType: string | null,
+  addressFormat?: AddressFormat,
 ): CollectorFormErrors {
   const errors: CollectorFormErrors = {};
 
@@ -54,8 +60,8 @@ export function validateCollectorForm(
     errors.profileName = "Informe o nome do perfil.";
   }
 
-  if (!WALLET_ADDRESS.test(values.walletAddress.trim())) {
-    errors.walletAddress = "Informe um endereço 0x válido com 40 caracteres.";
+  if (!isValidAddress(values.walletAddress, addressFormat)) {
+    errors.walletAddress = addressHint(addressFormat);
   }
 
   if (!walletType) {

@@ -1,5 +1,5 @@
 import type { ChangePasswordInput } from "../types/profile";
-import { MIN_PASSWORD_LENGTH } from "./validation";
+import { MIN_PASSWORD_LENGTH } from "@/lib/form-validation";
 
 export type PasswordFormErrors = Partial<
   Record<keyof ChangePasswordInput, string>

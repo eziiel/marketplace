@@ -4,7 +4,7 @@ import { fieldControl } from "@/components/ui/field-control";
 import type { UpdateProfileInput } from "../types/profile";
 import type { ProfileFormErrors } from "../lib/profile-form";
 import { AvatarField } from "./avatar-field";
-import { EnsField } from "./ens-field";
+import { EnsField } from "@/components/ui/ens-field";
 
 export function ProfileFields({
   values,

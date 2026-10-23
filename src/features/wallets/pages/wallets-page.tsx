@@ -1,21 +1,26 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { TriangleAlert } from "lucide-react";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { ArrowLeft, Star, TriangleAlert } from "lucide-react";
 
 import { useNetworks } from "@/features/checkout/hooks/use-networks";
+import { ProfileShell } from "@/features/profile/components/profile-shell";
+import { useProfile } from "@/features/profile/hooks/use-profile";
+import type { CollectorProfile } from "@/features/profile/types/profile";
+import { apiErrorMessage, isUnauthorized } from "@/lib/api-error";
+import { cn } from "@/lib/utils";
 
-import { ProfileShell } from "../components/profile-shell";
 import { WalletSection } from "../components/wallet-section";
 import { useWallets } from "../hooks/use-wallets";
-import { useProfile } from "../hooks/use-profile";
 import { emptyWalletForm } from "../lib/wallet-form";
-import { apiErrorMessage, isUnauthorized } from "../types/api-error";
+import { shortAddress, walletKindLabel } from "../lib/wallet-display";
 import type { CollectorWallet, WalletInput, WalletKind } from "../types/wallet";
-import type { CollectorProfile } from "../types/profile";
 
 function WalletsSkeleton() {
   return (
-    <div aria-label="Carregando carteiras" className="grid gap-x-7 gap-y-6 md:grid-cols-2">
+    <div
+      aria-label="Carregando carteiras"
+      className="grid gap-x-7 gap-y-6 md:grid-cols-2"
+    >
       {Array.from({ length: 10 }).map((_, index) => (
         <div key={index} className="space-y-3">
           <div className="h-4 w-32 animate-pulse rounded bg-card" />
@@ -64,6 +69,7 @@ function defaultsFor(
 
 export function WalletsPage() {
   const navigate = useNavigate();
+  const search = useSearch({ from: "/profile/wallets" });
   const walletsQuery = useWallets();
   const profileQuery = useProfile();
   const networksQuery = useNetworks();
@@ -89,15 +95,25 @@ export function WalletsPage() {
   const loading = walletsQuery.isPending || networksQuery.isPending;
   const networks = networksQuery.data ?? [];
   const profile = profileQuery.data?.profile;
+  const networkLabel = (id: string) =>
+    networks.find((network) => network.id === id)?.label ?? id;
 
   function focusPrimary() {
-    const input = primaryRef.current?.querySelector<HTMLElement>("input");
-
-    input?.focus();
+    primaryRef.current?.querySelector<HTMLElement>("input")?.focus();
   }
 
   return (
     <ProfileShell active="wallets" current="Carteiras">
+      {search.from === "checkout" && (
+        <Link
+          to="/checkout"
+          className="mb-5 inline-flex items-center gap-2 text-sm text-highlight transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Voltar ao pagamento
+        </Link>
+      )}
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="m-0 text-lg font-normal tracking-normal text-foreground">
@@ -148,12 +164,57 @@ export function WalletsPage() {
 
       {!loading && !walletsQuery.isError && (
         <>
+          {wallets.length === 0 ? (
+            <p className="mt-5 rounded-[4px] border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+              Você ainda não cadastrou carteiras. Preencha o formulário abaixo
+              para cadastrar a primeira, que será a principal.
+            </p>
+          ) : (
+            <ul
+              aria-label="Carteiras cadastradas"
+              className="mt-5 flex flex-col gap-2"
+            >
+              {wallets.map((wallet) => (
+                <li
+                  key={wallet.id}
+                  className={cn(
+                    "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[4px] border px-3 py-2 text-sm",
+                    wallet.kind === "primary"
+                      ? "border-highlight/60 text-foreground"
+                      : "border-border text-muted-foreground",
+                  )}
+                >
+                  {wallet.kind === "primary" && (
+                    <Star
+                      className="size-4 shrink-0 text-highlight"
+                      aria-hidden
+                    />
+                  )}
+                  <span className="font-bold">
+                    {walletKindLabel(wallet.kind)}
+                  </span>
+                  <span className="truncate">{wallet.walletNickname}</span>
+                  <span className="text-xs tabular-nums">
+                    {shortAddress(wallet.address)}
+                  </span>
+                  <span className="text-xs">
+                    {networkLabel(wallet.networkId)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
           <div ref={primaryRef} className="mt-6">
             <WalletSection
               kind="primary"
               wallet={primary}
               initialValues={defaultsFor("primary", profile, null, false)}
               networks={networks}
+              onRemoved={() => {
+                setSecondaryOpen(false);
+                setSameAsPrimary(false);
+              }}
             />
           </div>
 
@@ -183,7 +244,8 @@ export function WalletsPage() {
                   <button
                     type="button"
                     onClick={() => setSecondaryOpen(true)}
-                    className="text-sm text-highlight transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    disabled={!primary}
+                    className="text-sm text-highlight transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
                   >
                     Adicionar
                   </button>
@@ -193,7 +255,9 @@ export function WalletsPage() {
 
             {!secondary && !secondaryOpen && (
               <p className="mt-1 text-sm text-muted-foreground">
-                Você ainda não adicionou uma carteira secundária.
+                {primary
+                  ? "Você ainda não adicionou uma carteira secundária."
+                  : "Cadastre a carteira principal antes de adicionar uma secundária."}
               </p>
             )}
 
@@ -209,6 +273,7 @@ export function WalletsPage() {
                     sameAsPrimary,
                   )}
                   networks={networks}
+                  canPromote={Boolean(secondary && primary)}
                   onRemoved={() => {
                     setSecondaryOpen(false);
                     setSameAsPrimary(false);

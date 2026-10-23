@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { WalletInput, WalletResponse } from "../types/wallet";
+import type { WalletInput, WalletResponse } from "@/features/wallets/types/wallet";
 
 export async function createWallet(
   input: WalletInput,

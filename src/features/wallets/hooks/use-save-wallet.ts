@@ -1,9 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { createWallet } from "../api/create-wallet";
-import { updateWallet } from "../api/update-wallet";
-import type { WalletInput, WalletResponse } from "../types/wallet";
-import { useSessionToken, walletsKey } from "./use-profile-keys";
+import { createWallet } from "@/features/wallets/api/create-wallet";
+import { updateWallet } from "@/features/wallets/api/update-wallet";
+import type { WalletInput, WalletResponse } from "@/features/wallets/types/wallet";
+import { useSessionToken } from "@/lib/session-token";
+import { walletsKey } from "./wallet-keys";
 
 export interface SaveWalletInput {
   id: string | null;

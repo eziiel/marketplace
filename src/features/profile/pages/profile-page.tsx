@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 
 import { ProfileShell } from "../components/profile-shell";
 import { ProfileFields } from "../components/profile-fields";
+import { TestFillButton } from "@/components/ui/test-fill-button";
+import { devFillEnabled, keepFilled, sampleCollector } from "@/lib/dev-fill";
 import { PasswordFields } from "../components/password-fields";
 import { useProfile } from "../hooks/use-profile";
 import { useUpdateProfile } from "../hooks/use-update-profile";
@@ -24,12 +26,12 @@ import {
   validatePasswordForm,
   type PasswordFormErrors,
 } from "../lib/password-form";
-import { firstInvalid, focusField } from "../lib/validation";
+import { firstInvalid, focusField } from "@/lib/form-validation";
 import {
   apiErrorBody,
   apiErrorMessage,
   isUnauthorized,
-} from "../types/api-error";
+} from "@/lib/api-error";
 import type { ChangePasswordInput, UpdateProfileInput } from "../types/profile";
 
 const FORM_ID = "profile-form";
@@ -114,6 +116,20 @@ export function ProfilePage() {
     }
 
     return true;
+  }
+
+  function fillSample() {
+    setForm((current) =>
+      keepFilled(current, {
+        displayName: sampleCollector.displayName,
+        username: sampleCollector.username,
+        email: sampleCollector.email,
+        ensName: sampleCollector.ensName,
+        walletNickname: sampleCollector.walletNickname,
+      }),
+    );
+
+    setErrors({});
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -212,6 +228,10 @@ export function ProfilePage() {
 
       {profile && (
         <form id={FORM_ID} noValidate onSubmit={(event) => void handleSubmit(event)}>
+          {devFillEnabled && (
+            <TestFillButton onFill={fillSample} className="mb-5" />
+          )}
+
           <ProfileFields values={form} errors={errors} onChange={setForm} />
 
           <div className="mt-6">

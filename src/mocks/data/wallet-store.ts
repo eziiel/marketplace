@@ -1,7 +1,7 @@
 import type {
   CollectorWallet,
   WalletInput,
-} from "@/features/profile/types/wallet";
+} from "@/features/wallets/types/wallet";
 
 const STORAGE_KEY = "marketplace-wallets";
 
@@ -29,8 +29,14 @@ function writeStore(store: WalletStore): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
 }
 
+function sortByKind(wallets: CollectorWallet[]): CollectorWallet[] {
+  return [...wallets].sort((a, b) =>
+    a.kind === b.kind ? 0 : a.kind === "primary" ? -1 : 1,
+  );
+}
+
 export function listWallets(userId: string): CollectorWallet[] {
-  return [...(readStore()[userId] ?? [])];
+  return sortByKind(readStore()[userId] ?? []);
 }
 
 export function findWallet(
@@ -45,17 +51,18 @@ export function createWallet(
   input: WalletInput,
 ): CollectorWallet {
   const now = new Date().toISOString();
+  const store = readStore();
+  const current = store[userId] ?? [];
 
   const wallet: CollectorWallet = {
     ...input,
+    kind: current.length === 0 ? "primary" : input.kind,
     id: crypto.randomUUID(),
     createdAt: now,
     updatedAt: now,
   };
 
-  const store = readStore();
-
-  store[userId] = [...(store[userId] ?? []), wallet];
+  store[userId] = [...current, wallet];
 
   writeStore(store);
 
@@ -76,6 +83,7 @@ export function updateWallet(
   const updated: CollectorWallet = {
     ...wallets[index],
     ...input,
+    kind: wallets[index].kind,
     updatedAt: new Date().toISOString(),
   };
 
@@ -87,18 +95,58 @@ export function updateWallet(
   return updated;
 }
 
-export function removeWallet(userId: string, walletId: string): boolean {
+export function promoteWallet(
+  userId: string,
+  walletId: string,
+): CollectorWallet[] | null {
   const store = readStore();
   const wallets = store[userId] ?? [];
-  const next = wallets.filter((wallet) => wallet.id !== walletId);
 
-  if (next.length === wallets.length) return false;
+  if (!wallets.some((wallet) => wallet.id === walletId)) return null;
 
-  store[userId] = next;
+  const now = new Date().toISOString();
+
+  store[userId] = wallets.map((wallet) => {
+    if (wallet.id === walletId) {
+      return wallet.kind === "primary"
+        ? wallet
+        : { ...wallet, kind: "primary", updatedAt: now };
+    }
+
+    return wallet.kind === "primary"
+      ? { ...wallet, kind: "secondary", updatedAt: now }
+      : wallet;
+  });
 
   writeStore(store);
 
-  return true;
+  return sortByKind(store[userId]);
+}
+
+export function removeWallet(
+  userId: string,
+  walletId: string,
+): CollectorWallet[] | null {
+  const store = readStore();
+  const wallets = store[userId] ?? [];
+  const target = wallets.find((wallet) => wallet.id === walletId);
+
+  if (!target) return null;
+
+  const remaining = wallets.filter((wallet) => wallet.id !== walletId);
+
+  if (target.kind === "primary" && remaining.length > 0) {
+    const now = new Date().toISOString();
+    const [next, ...rest] = remaining;
+
+    store[userId] = [{ ...next, kind: "primary", updatedAt: now }, ...rest];
+  } else {
+    store[userId] = remaining;
+  }
+
+  writeStore(store);
+
+  return sortByKind(store[userId]);
 }
 
 export function clearWallets(): void {

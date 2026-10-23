@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { CheckCircle2, TriangleAlert } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -7,12 +7,15 @@ import { Field } from "@/components/ui/field";
 import { fieldControl } from "@/components/ui/field-control";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
-import { WALLET_PROVIDERS } from "@/features/checkout/types/wallet";
+import { WALLET_PROVIDERS } from "../types/wallet";
 import type { CheckoutNetwork } from "@/features/checkout/types/quote";
 
-import type { WalletInput } from "../types/wallet";
-import type { WalletFormErrors } from "../lib/wallet-form";
-import { EnsField } from "./ens-field";
+import type { WalletInput } from "@/features/wallets/types/wallet";
+import type { WalletFormErrors } from "@/features/wallets/lib/wallet-form";
+import { EnsField } from "@/components/ui/ens-field";
+import { TestFillButton } from "@/components/ui/test-fill-button";
+import { devFillEnabled } from "@/lib/dev-fill";
+import { addressPlaceholder, type AddressFormat } from "../lib/address";
 
 export interface WalletFormProps {
   id: string;
@@ -20,14 +23,17 @@ export interface WalletFormProps {
   values: WalletInput;
   errors: WalletFormErrors;
   networks: CheckoutNetwork[];
+  addressFormat?: AddressFormat;
   status: string | null;
   failure: string | null;
   saving: boolean;
   submitLabel: string;
   onChange: (values: WalletInput) => void;
   onSubmit: () => void;
+  onFill?: () => void;
   onRemove?: () => void;
   removing?: boolean;
+  extraActions?: ReactNode;
 }
 
 export function WalletForm({
@@ -36,14 +42,17 @@ export function WalletForm({
   values,
   errors,
   networks,
+  addressFormat,
   status,
   failure,
   saving,
   submitLabel,
   onChange,
   onSubmit,
+  onFill,
   onRemove,
   removing = false,
+  extraActions,
 }: WalletFormProps) {
   function set<K extends keyof WalletInput>(key: K, value: WalletInput[K]) {
     onChange({ ...values, [key]: value });
@@ -58,6 +67,10 @@ export function WalletForm({
 
   return (
     <form id={id} noValidate onSubmit={handleSubmit}>
+      {devFillEnabled && onFill && (
+        <TestFillButton onFill={onFill} className="mb-5" />
+      )}
+
       <div className="grid gap-x-7 gap-y-2 md:grid-cols-2">
         <Field
           id={fieldId("displayName")}
@@ -136,7 +149,7 @@ export function WalletForm({
             name="address"
             autoComplete="off"
             spellCheck={false}
-            placeholder="Endereço 0x da carteira"
+            placeholder={addressPlaceholder(addressFormat)}
             value={values.address}
             onChange={(event) => set("address", event.target.value)}
           />
@@ -261,6 +274,8 @@ export function WalletForm({
         >
           {saving ? "Salvando..." : submitLabel}
         </button>
+
+        {extraActions}
 
         {onRemove && (
           <button

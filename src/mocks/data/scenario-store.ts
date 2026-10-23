@@ -3,7 +3,8 @@ export type Scenario =
   | "payment_refused"
   | "timeout"
   | "stock_changed"
-  | "price_changed";
+  | "price_changed"
+  | "wallet_refused";
 
 const STORAGE_KEY = "marketplace-scenario";
 const DEFAULT_SCENARIO: Scenario = "success";
@@ -14,6 +15,7 @@ const SCENARIOS: readonly Scenario[] = [
   "timeout",
   "stock_changed",
   "price_changed",
+  "wallet_refused",
 ];
 
 export function isScenario(value: unknown): value is Scenario {

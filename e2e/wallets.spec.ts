@@ -26,18 +26,49 @@ async function logout(page: Page) {
   await expect(page.getByRole("link", { name: "Entrar" })).toBeVisible();
 }
 
-async function fillPrimaryWallet(page: Page, address = PRIMARY_ADDRESS) {
-  const form = page.locator("#wallet-primary-form");
+async function setScenario(page: Page, scenario: string) {
+  await page.evaluate(async (value) => {
+    await fetch("/api/test/scenario", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario: value }),
+    });
+  }, scenario);
+}
+
+async function fillWallet(
+  page: Page,
+  kind: "primary" | "secondary",
+  overrides: { address?: string; nickname?: string; network?: string } = {},
+) {
+  const form = page.locator(`#wallet-${kind}-form`);
 
   await form.getByLabel("Nome de exibição").fill("Ana Silva");
-  await form.getByLabel("Apelido da carteira").fill("Carteira principal");
-  await form.getByLabel("Rede").selectOption("ethereum");
+  await form
+    .getByLabel("Apelido da carteira")
+    .fill(overrides.nickname ?? "Carteira principal");
+  await form.getByLabel("Rede").selectOption(overrides.network ?? "ethereum");
   await form.getByLabel("Nome do perfil").fill("Ana Colecionadora");
-  await form.getByLabel("Endereço da carteira").fill(address);
+  await form
+    .getByLabel("Endereço da carteira")
+    .fill(overrides.address ?? PRIMARY_ADDRESS);
   await form.getByLabel("Tipo de carteira").selectOption("metamask");
   await form.getByLabel("Código de indicação").fill("KURIO-2026");
   await form.getByLabel("E-mail").fill(ANA.email);
   await form.getByLabel("Nome ENS").fill("ana-silva");
+}
+
+async function createPrimary(page: Page) {
+  await page.goto("/profile/wallets");
+  await fillWallet(page, "primary");
+  await page.getByRole("button", { name: "Adicionar carteira" }).click();
+  await expect(page.getByText("Carteira cadastrada.")).toBeVisible();
+}
+
+async function addToCart(page: Page) {
+  await page.goto("/nfts/1");
+  await page.getByRole("button", { name: "Comprar" }).click();
+  await expect(page.getByText("Item adicionado ao carrinho!")).toBeVisible();
 }
 
 test.describe("Carteiras", () => {
@@ -56,12 +87,11 @@ test.describe("Carteiras", () => {
     page,
   }) => {
     await login(page, ANA);
-    await page.goto("/profile/wallets");
+    await createPrimary(page);
 
-    await fillPrimaryWallet(page);
-    await page.getByRole("button", { name: "Adicionar carteira" }).click();
-
-    await expect(page.getByText("Carteira cadastrada.")).toBeVisible();
+    await expect(
+      page.getByRole("list", { name: "Carteiras cadastradas" }),
+    ).toContainText("Principal");
 
     await page.reload();
 
@@ -69,44 +99,83 @@ test.describe("Carteiras", () => {
     await expect(form.getByLabel("Endereço da carteira")).toHaveValue(
       PRIMARY_ADDRESS,
     );
-    await expect(form.getByLabel("Apelido da carteira")).toHaveValue(
-      "Carteira principal",
-    );
     await expect(
-      page.getByRole("button", { name: "Salvar carteira" }),
-    ).toBeVisible();
+      page.getByRole("list", { name: "Carteiras cadastradas" }),
+    ).toContainText("Carteira principal");
   });
 
-  test("valida endereço inválido e rede obrigatória", async ({ page }) => {
+  test("edita uma carteira existente sem duplicar o registro", async ({
+    page,
+  }) => {
     await login(page, ANA);
-    await page.goto("/profile/wallets");
+    await createPrimary(page);
 
-    await page.getByRole("button", { name: "Adicionar carteira" }).click();
+    const form = page.locator("#wallet-primary-form");
+    await form.getByLabel("Apelido da carteira").fill("Carteira editada");
+    await page.getByRole("button", { name: "Salvar carteira" }).click();
+
+    await expect(page.getByText("Carteira atualizada.")).toBeVisible();
+
+    await page.reload();
 
     await expect(
-      page.locator("#wallet-primary-walletNickname-error"),
-    ).toHaveText("Informe um apelido com ao menos 2 caracteres.");
-
-    await fillPrimaryWallet(page, "0x123");
-    await page.getByRole("button", { name: "Adicionar carteira" }).click();
-
+      page.getByRole("list", { name: "Carteiras cadastradas" }),
+    ).toContainText("Carteira editada");
     await expect(
-      page.getByText("Informe um endereço 0x válido com 40 caracteres."),
-    ).toBeVisible();
-    await expect(
-      page.locator("#wallet-primary-form").getByLabel("Endereço da carteira"),
-    ).toBeFocused();
+      page.getByRole("list", { name: "Carteiras cadastradas" }).getByRole("listitem"),
+    ).toHaveCount(1);
   });
 
-  test("cadastra carteira secundária igual à principal e remove", async ({
+  test("valida apelido vazio e endereço fora do formato da rede", async ({
     page,
   }) => {
     await login(page, ANA);
     await page.goto("/profile/wallets");
 
-    await fillPrimaryWallet(page);
     await page.getByRole("button", { name: "Adicionar carteira" }).click();
+    await expect(
+      page.locator("#wallet-primary-walletNickname-error"),
+    ).toHaveText("Informe um apelido com ao menos 2 caracteres.");
+
+    await fillWallet(page, "primary", { address: "0x123" });
+    await page.getByRole("button", { name: "Adicionar carteira" }).click();
+
+    await expect(page.locator("#wallet-primary-address-error")).toHaveText(
+      "Informe um endereço 0x válido com 40 caracteres hexadecimais.",
+    );
+    await expect(
+      page.locator("#wallet-primary-form").getByLabel("Endereço da carteira"),
+    ).toBeFocused();
+  });
+
+  test("rede Solana exige endereço base58 em vez de 0x", async ({ page }) => {
+    await login(page, ANA);
+    await page.goto("/profile/wallets");
+
+    await fillWallet(page, "primary", {
+      network: "solana",
+      address: PRIMARY_ADDRESS,
+    });
+    await page.getByRole("button", { name: "Adicionar carteira" }).click();
+
+    await expect(page.locator("#wallet-primary-address-error")).toHaveText(
+      "Informe um endereço base58 válido com 32 a 44 caracteres.",
+    );
+
+    await page
+      .locator("#wallet-primary-form")
+      .getByLabel("Endereço da carteira")
+      .fill("7EqQdEULxWcraVx3mXKFjc84LhCkMGZCkRuDpvcMwJeK");
+    await page.getByRole("button", { name: "Adicionar carteira" }).click();
+
     await expect(page.getByText("Carteira cadastrada.")).toBeVisible();
+  });
+
+  test("secundária herda dados da principal e pode virar principal", async ({
+    page,
+  }) => {
+    await login(page, ANA);
+    await createPrimary(page);
 
     await page.getByLabel("Igual à carteira principal").check();
     await page
@@ -115,43 +184,37 @@ test.describe("Carteiras", () => {
       .click();
 
     const secondary = page.locator("#wallet-secondary-form");
-
     await expect(secondary.getByLabel("Apelido da carteira")).toHaveValue(
       "Carteira principal",
     );
     await expect(secondary.getByLabel("Endereço da carteira")).toHaveValue("");
 
+    await secondary.getByLabel("Apelido da carteira").fill("Carteira reserva");
     await secondary.getByLabel("Endereço da carteira").fill(SECONDARY_ADDRESS);
-    await secondary
-      .getByRole("button", { name: "Adicionar carteira" })
+    await secondary.getByRole("button", { name: "Adicionar carteira" }).click();
+    await expect(secondary.getByText("Carteira cadastrada.")).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Tornar carteira principal" })
       .click();
-
-    await expect(page.getByText("Carteira cadastrada.")).toBeVisible();
-
-    await page.reload();
     await expect(
-      page.locator("#wallet-secondary-form").getByLabel("Endereço da carteira"),
-    ).toHaveValue(SECONDARY_ADDRESS);
-
-    await page.getByRole("button", { name: "Remover carteira" }).click();
-
-    await expect(
-      page.getByText("Você ainda não adicionou uma carteira secundária."),
+      page.getByText("Carteira definida como principal."),
     ).toBeVisible();
 
     await page.reload();
-    await expect(
-      page.getByText("Você ainda não adicionou uma carteira secundária."),
-    ).toBeVisible();
+
+    const items = page
+      .getByRole("list", { name: "Carteiras cadastradas" })
+      .getByRole("listitem");
+
+    await expect(items).toHaveCount(2);
+    await expect(items.first()).toContainText("Principal");
+    await expect(items.first()).toContainText("Carteira reserva");
   });
 
-  test("rejeita endereço duplicado entre carteiras", async ({ page }) => {
+  test("remoção pede confirmação e promove a secundária", async ({ page }) => {
     await login(page, ANA);
-    await page.goto("/profile/wallets");
-
-    await fillPrimaryWallet(page);
-    await page.getByRole("button", { name: "Adicionar carteira" }).click();
-    await expect(page.getByText("Carteira cadastrada.")).toBeVisible();
+    await createPrimary(page);
 
     await page
       .getByRole("button", { name: "Adicionar", exact: true })
@@ -159,7 +222,58 @@ test.describe("Carteiras", () => {
       .click();
 
     const secondary = page.locator("#wallet-secondary-form");
+    await secondary.getByLabel("Nome de exibição").fill("Ana Silva");
+    await secondary.getByLabel("Apelido da carteira").fill("Carteira reserva");
+    await secondary.getByLabel("Rede").selectOption("polygon");
+    await secondary.getByLabel("Nome do perfil").fill("Ana Colecionadora");
+    await secondary.getByLabel("Endereço da carteira").fill(SECONDARY_ADDRESS);
+    await secondary.getByLabel("Tipo de carteira").selectOption("metamask");
+    await secondary.getByLabel("Código de indicação").fill("KURIO-2026");
+    await secondary.getByLabel("E-mail").fill(ANA.email);
+    await secondary.getByLabel("Nome ENS").fill("ana-reserva");
+    await secondary.getByRole("button", { name: "Adicionar carteira" }).click();
+    await expect(secondary.getByText("Carteira cadastrada.")).toBeVisible();
 
+    await page
+      .locator("#wallet-primary-form")
+      .getByRole("button", { name: "Remover carteira" })
+      .click();
+
+    const dialog = page.getByRole("alertdialog");
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Cancelar" }).click();
+    await expect(dialog).toBeHidden();
+
+    await page
+      .locator("#wallet-primary-form")
+      .getByRole("button", { name: "Remover carteira" })
+      .click();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Confirmar remoção" })
+      .click();
+
+    await page.reload();
+
+    const items = page
+      .getByRole("list", { name: "Carteiras cadastradas" })
+      .getByRole("listitem");
+
+    await expect(items).toHaveCount(1);
+    await expect(items.first()).toContainText("Principal");
+    await expect(items.first()).toContainText("Carteira reserva");
+  });
+
+  test("rejeita endereço duplicado entre carteiras", async ({ page }) => {
+    await login(page, ANA);
+    await createPrimary(page);
+
+    await page
+      .getByRole("button", { name: "Adicionar", exact: true })
+      .last()
+      .click();
+
+    const secondary = page.locator("#wallet-secondary-form");
     await secondary.getByLabel("Nome de exibição").fill("Ana Silva");
     await secondary.getByLabel("Apelido da carteira").fill("Reserva");
     await secondary.getByLabel("Rede").selectOption("polygon");
@@ -169,7 +283,6 @@ test.describe("Carteiras", () => {
     await secondary.getByLabel("Código de indicação").fill("KURIO-2026");
     await secondary.getByLabel("E-mail").fill(ANA.email);
     await secondary.getByLabel("Nome ENS").fill("ana-reserva");
-
     await secondary.getByRole("button", { name: "Adicionar carteira" }).click();
 
     await expect(page.locator("#wallet-secondary-address-error")).toHaveText(
@@ -179,10 +292,7 @@ test.describe("Carteiras", () => {
 
   test("carteiras são isoladas entre usuários", async ({ page }) => {
     await login(page, ANA);
-    await page.goto("/profile/wallets");
-    await fillPrimaryWallet(page);
-    await page.getByRole("button", { name: "Adicionar carteira" }).click();
-    await expect(page.getByText("Carteira cadastrada.")).toBeVisible();
+    await createPrimary(page);
 
     await logout(page);
     await login(page, BRUNO);
@@ -192,41 +302,98 @@ test.describe("Carteiras", () => {
       page.locator("#wallet-primary-form").getByLabel("Endereço da carteira"),
     ).toHaveValue("");
     await expect(
-      page.getByRole("button", { name: "Adicionar carteira" }),
-    ).toBeVisible();
+      page.getByRole("list", { name: "Carteiras cadastradas" }),
+    ).toHaveCount(0);
   });
 
-  test("carteira cadastrada preenche o checkout", async ({ page }) => {
+  test("checkout exige carteira conectada e conclui a compra", async ({
+    page,
+  }) => {
     await login(page, ANA);
-    await page.goto("/profile/wallets");
-    await fillPrimaryWallet(page);
-    await page.getByRole("button", { name: "Adicionar carteira" }).click();
-    await expect(page.getByText("Carteira cadastrada.")).toBeVisible();
-
-    await page.goto("/nfts/1");
-    await page.getByRole("button", { name: "Comprar" }).click();
-    await expect(page.getByText("Item adicionado ao carrinho!")).toBeVisible();
+    await createPrimary(page);
+    await addToCart(page);
 
     await page.goto("/checkout");
     await expect(
       page.getByRole("heading", { name: "Perfil do colecionador" }),
     ).toBeVisible();
 
-    await page.getByRole("radio", { name: /Principal/ }).check();
+    const confirm = page.getByRole("button", { name: "Confirmar compra" });
+    await expect(confirm).toBeDisabled();
 
+    await page.getByRole("radio", { name: /Principal/ }).check();
     await expect(page.getByLabel("Endereço da carteira")).toHaveValue(
       PRIMARY_ADDRESS,
     );
-    await expect(page.getByLabel("Nome do perfil")).toHaveValue(
-      "Ana Colecionadora",
-    );
-    await expect(page.getByLabel("Tipo de carteira")).toHaveValue("metamask");
+    await expect(confirm).toBeDisabled();
+
+    await page.getByRole("button", { name: "Conectar carteira" }).click();
+    await expect(page.getByText("Carteira conectada.")).toBeVisible();
+    await expect(confirm).toBeEnabled();
 
     await page.getByLabel("Nome de usuário").fill("ana.silva");
-    await page.getByRole("button", { name: "Confirmar compra" }).click();
+    await confirm.click();
 
     await expect(
       page.getByRole("heading", { name: "Pedido confirmado" }),
     ).toBeVisible();
+    await expect(page.getByText("Carteira principal")).toBeVisible();
+  });
+
+  test("conexão recusada impede a confirmação", async ({ page }) => {
+    await login(page, ANA);
+    await createPrimary(page);
+    await addToCart(page);
+    await setScenario(page, "wallet_refused");
+
+    await page.goto("/checkout");
+    await page.getByRole("radio", { name: /Principal/ }).check();
+    await page.getByRole("button", { name: "Conectar carteira" }).click();
+
+    await expect(
+      page.getByText("Conexão recusada pela carteira."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Confirmar compra" }),
+    ).toBeDisabled();
+
+    await setScenario(page, "success");
+  });
+
+  test("troca de rede incompatível bloqueia a compra", async ({ page }) => {
+    await login(page, ANA);
+    await createPrimary(page);
+    await addToCart(page);
+
+    await page.goto("/checkout");
+    await page.getByRole("radio", { name: /Principal/ }).check();
+    await page.getByRole("button", { name: "Conectar carteira" }).click();
+    await expect(page.getByText("Carteira conectada.")).toBeVisible();
+
+    await page.getByLabel("Rede").selectOption("polygon");
+
+    await expect(page.getByText(/Esta carteira é da rede Ethereum/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Confirmar compra" }),
+    ).toBeDisabled();
+  });
+
+  test("checkout sem carteira oferece cadastro e volta ao pagamento", async ({
+    page,
+  }) => {
+    await login(page, ANA);
+    await addToCart(page);
+
+    await page.goto("/checkout");
+
+    await expect(
+      page.getByText("Você ainda não cadastrou uma carteira"),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: "Cadastrar carteira" }).click();
+    await expect(page).toHaveURL(/profile\/wallets\?from=checkout/);
+
+    await page.getByRole("link", { name: "Voltar ao pagamento" }).click();
+    await expect(page).toHaveURL(/checkout/);
   });
 });
